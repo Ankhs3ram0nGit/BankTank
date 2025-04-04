@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">ExpenseTracker</string>
+    <string name="title_home">Home</string>
+    <string name="title_dashboard">Tanks</string>
+    <string name="title_notifications">Savings</string>
+    <string name="title_other">Settings</string>
+</resources>
