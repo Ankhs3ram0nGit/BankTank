@@ -1,32 +1,34 @@
 package com.example.expensetracker.ui.home
 
+import com.example.expensetracker.Account
+import com.example.expensetracker.DatabaseHandler
 import android.app.AlertDialog
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
-import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.constraintlayout.widget.ConstraintLayout
+import android.widget.Spinner
 import androidx.fragment.app.Fragment
 import com.example.expensetracker.databinding.FragmentHomeBinding
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import android.widget.Spinner
+import androidx.core.content.ContextCompat
 import com.example.expensetracker.R
-
 
 class HomeFragment : Fragment() {
 
+    private lateinit var databaseHandler: DatabaseHandler
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
-
     private lateinit var sharedPreferences: SharedPreferences
     private val accountList = mutableListOf<String>()
-
     private val ACCOUNTS_KEY = "accountList"
 
     override fun onCreateView(
@@ -37,10 +39,14 @@ class HomeFragment : Fragment() {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
         val root: View = binding.root
 
+        // Initialize databaseHandler and sharedPreferences
+        databaseHandler = DatabaseHandler(requireContext())
         sharedPreferences = requireActivity().getSharedPreferences("AccountData", Context.MODE_PRIVATE)
-        // Load accounts from SharedPreferences
+
+        // Load accounts from SharedPreferences or the database
         loadAccounts()
 
+        // Floating action button to add new account
         val plusButton: FloatingActionButton = binding.plusButton
         plusButton.setOnClickListener {
             showAddAccountDialog()
@@ -50,14 +56,18 @@ class HomeFragment : Fragment() {
     }
 
     private fun loadAccounts() {
-        val savedAccounts = sharedPreferences.getStringSet(ACCOUNTS_KEY, setOf()) ?: setOf()
-        accountList.clear()
-        accountList.addAll(savedAccounts)
-        // Create rectangle views for each saved account
-        accountList.forEach { accountName ->
-            createRectangleView(accountName, 0.0) // You can set balance to 0 or retrieve from storage if available
+        // Clear existing views to prevent duplicates
+        binding.container.removeAllViews()
+
+        // Retrieve accounts from the database
+        val accountList = databaseHandler.getAllAccounts()
+
+        // Create rectangle views for each account
+        accountList.forEach { account ->
+            val rectangleView = createRectangleView(account.name, account.balance, account.color)
+            binding.container.addView(rectangleView)
         }
-    }  
+    }
 
     private fun saveAccounts() {
         // Convert accountList to a set and save it to SharedPreferences
@@ -102,58 +112,76 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun addAccount(accountName: String, accountBalance: Double) {
-        accountList.add(accountName)
-        saveAccounts() // Save updated account list
-        // Create and add a new rectangle for the account
-        val rectangleView = createRectangleView(accountName, accountBalance)
-        binding.container.addView(rectangleView)
+    private fun addAccount(accountName: String, accountBalance: Double, accountColor: String = "Gray") {
+        val color = if (accountColor.isNotEmpty()) accountColor else "DefaultColor"
+
+        // Create an account object
+        val account = Account(accountName, accountBalance, accountColor)
+        account.color = color
+
+        // Initialize DatabaseHandler instance (can be initialized elsewhere if required)
+        val databaseHandler = DatabaseHandler(requireContext())
+
+        // Insert the account into the database
+        databaseHandler.insertData(account)
+
+        // Update the UI with the new account view
+        val accountContainer = binding.container
+        val rectangleView = createRectangleView(accountName, accountBalance, accountColor)
+        accountContainer.addView(rectangleView)
     }
 
-    private fun createRectangleView(accountName: String, accountBalance: Double): View {
-        val layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            250 // Set the height to 250 pixels
-        )
-        val rectangleLayout = LinearLayout(requireContext())
-        layoutParams.setMargins(5, 10, 5, 0) // Set margins (left, top, right, bottom)
-        rectangleLayout.layoutParams = layoutParams
-        rectangleLayout.orientation = LinearLayout.VERTICAL
-        rectangleLayout.background = requireContext().getDrawable(R.drawable.rectangle_background) // Set background drawable for the rectangle
-        val nameTextView = TextView(requireContext())
-        nameTextView.layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        )
-        nameTextView.text = accountName
-        nameTextView.textSize = 20f // Set text size for account name
-        nameTextView.setPadding(16, 16, 16, 0) // Add padding to the text
-        rectangleLayout.addView(nameTextView)
-        rectangleLayout.tag = accountName
-        val balanceTextView = TextView(requireContext())
-        balanceTextView.layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        )
-        balanceTextView.text = "$accountBalance"
-        balanceTextView.textSize = 16f // Set text size for account balance
-        balanceTextView.setPadding(16, 8, 16, 16) // Add padding to the text
-        rectangleLayout.addView(balanceTextView)
+    private fun createRectangleView(accountName: String, accountBalance: Double, accountColor: String): View {
+        val inflater = LayoutInflater.from(requireContext())
+        // Inflate the account rectangle layout which already has background styling
+        val rectangleLayout = inflater.inflate(R.layout.account_rectangle, null) as ConstraintLayout
 
-        // Create edit button
-        val editButton = Button(requireContext())
-        editButton.layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
+        // Set margins between items
+        val layoutParams = ViewGroup.MarginLayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
         )
-        editButton.text = "Edit"
+        layoutParams.setMargins(0, 0, 0, 32) // Adjust margins as needed
+        rectangleLayout.layoutParams = layoutParams
+
+        rectangleLayout.tag = accountName
+
+        val nameTextView = rectangleLayout.findViewById<TextView>(R.id.accountNameText)
+        val balanceTextView = rectangleLayout.findViewById<TextView>(R.id.accountBalanceText)
+        val editButton = rectangleLayout.findViewById<Button>(R.id.editAccountButton)
+
+        nameTextView.text = accountName
+        balanceTextView.text = "$accountBalance"
+
+        // Set text color if needed (optional)
+        nameTextView.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
+        balanceTextView.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
+
+        // Set background color dynamically based on accountColor (from colors.xml)
+        val colorResId = resources.getIdentifier(accountColor, "color", requireContext().packageName)
+        if (colorResId != 0) {
+            // Set the background color using the predefined color from colors.xml
+            val colorInt = ContextCompat.getColor(requireContext(), colorResId)
+            // Instead of setting background color directly, set the drawable background dynamically if needed
+            val drawable = ContextCompat.getDrawable(requireContext(), R.drawable.rectangle_background) as GradientDrawable
+            drawable.setColor(colorInt)  // Set the color on the background drawable
+            rectangleLayout.background = drawable
+        } else {
+            // Default to gray if the color name doesn't match any defined colors
+            val drawable = ContextCompat.getDrawable(requireContext(), R.drawable.rectangle_background) as GradientDrawable
+            drawable.setColor(ContextCompat.getColor(requireContext(), R.color.account_gray))
+            rectangleLayout.background = drawable
+        }
+
         editButton.setOnClickListener {
             showEditAccountDialog(accountName, accountBalance)
         }
-        rectangleLayout.addView(editButton)
 
         return rectangleLayout
     }
+
+
+
 
     private fun showEditAccountDialog(accountName: String, accountBalance: Double) {
         val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_edit_account, null)
@@ -172,52 +200,53 @@ class HomeFragment : Fragment() {
         alertDialog.show()
 
         buttonSave.setOnClickListener {
-
             val newName = editTextNewName.text.toString().trim()
+
             val newColor = when (colorSpinner.selectedItemPosition) {
-                0 -> Color.RED
-                1 -> Color.GREEN
-                2 -> Color.BLUE
-                3 -> Color.YELLOW
-                else -> Color.WHITE // Default color
+                0 -> ContextCompat.getColor(requireContext(), R.color.account_green)
+                1 -> ContextCompat.getColor(requireContext(), R.color.account_red)
+                2 -> ContextCompat.getColor(requireContext(), R.color.account_yellow)
+                3 -> ContextCompat.getColor(requireContext(), R.color.account_gray)
+                4 -> ContextCompat.getColor(requireContext(), R.color.account_forest_green)
+                5 -> ContextCompat.getColor(requireContext(), R.color.account_mighty_purple)
+                6 -> ContextCompat.getColor(requireContext(), R.color.account_purple)
+                7 -> ContextCompat.getColor(requireContext(), R.color.account_seal_blue)
+                8 -> ContextCompat.getColor(requireContext(), R.color.account_royal_blue)
+                else -> ContextCompat.getColor(requireContext(), R.color.account_gray)
             }
 
-
-            // Update account name and color
             if (newName.isNotEmpty()) {
-                updateAccount(accountName, newName, newColor)
+                val accountView = findRectangleView(accountName)
+                updateAccount(accountName, newName, newColor, accountView)
                 alertDialog.dismiss()
-            } else {
-                // Show error or handle empty input
             }
         }
 
         buttonDelete.setOnClickListener {
-            // Delete account
             deleteAccount(accountName)
             alertDialog.dismiss()
         }
     }
 
-    private fun updateAccount(oldName: String, newName: String, newColor: Int) {
-        // Find the rectangle view associated with the old account name
-        val rectangleView = findRectangleView(oldName)
-
-        // Update the account name text
-        val nameTextView = rectangleView.findViewById<TextView>(R.id.editTextNewName)
+    private fun updateAccount(oldName: String, newName: String, newColor: Int, rectangleView: View) {
+        // Update name text
+        val nameTextView = rectangleView.findViewById<TextView>(R.id.accountNameText)
         nameTextView.text = newName
 
-        // Update the background color of the rectangle layout
-        rectangleView.setBackgroundColor(newColor)
+        // Change background color
+        val backgroundDrawable = GradientDrawable()
+        backgroundDrawable.cornerRadius = 20f * resources.displayMetrics.density // 20dp in px
+        backgroundDrawable.setColor(newColor)
+        rectangleView.background = backgroundDrawable
 
-        // Update the account name in the account list
+        // Update tag
+        rectangleView.tag = newName
+
+        // Update the list
         val index = accountList.indexOf(oldName)
         if (index != -1) {
             accountList[index] = newName
         }
-
-        // Save the updated account list
-        saveAccounts()
     }
 
     private fun findRectangleView(accountName: String): View {
@@ -232,15 +261,19 @@ class HomeFragment : Fragment() {
     }
 
     private fun deleteAccount(accountName: String) {
-        // Remove the account from the list
-        accountList.remove(accountName)
-        // Remove the rectangle view from the container layout
-        val rectangleView = findRectangleView(accountName)
-        binding.container.removeView(rectangleView)
+        // Delete the account from the database
+        databaseHandler.deleteAccount(accountName)
 
-        // Save the updated account list
+        // Remove from in-memory list
+        accountList.remove(accountName)
+
+        // Refresh the UI
+        loadAccounts()
+
+        // Save updated account list to SharedPreferences
         saveAccounts()
     }
+
 
     override fun onDestroyView() {
         super.onDestroyView()

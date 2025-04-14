@@ -9,4 +9,14 @@
     <color name="white">#FFFFFFFF</color>
     <color name="colorPrimary">#3F51B5</color>
     <color name="colorGrey">#292A2C</color>
+    <color name="account_green">#009942</color>        <!-- (0, 153, 66) -->
+    <color name="account_red">#940A1A</color>          <!-- (148, 10, 26) -->
+    <color name="account_yellow">#C7B600</color>       <!-- (199, 182, 0) -->
+    <color name="account_gray">#292A2C</color>         <!-- Default gray -->
+    <color name="account_forest_green">#1AA15B</color> <!-- (26, 161, 91) -->
+    <color name="account_mighty_purple">#38108F</color><!-- (56, 16, 143) -->
+    <color name="account_purple">#47006E</color>       <!-- (71, 0, 110) -->
+    <color name="account_seal_blue">#00527A</color>    <!-- (0, 82, 122) -->
+    <color name="account_royal_blue">#050E73</color>   <!-- (5, 14, 115) -->
+
 </resources>
