@@ -310,8 +310,21 @@ class HomeFragment : Fragment() {
 
     }
     private fun deleteAccount(accountName: String) {
+        val databaseHandler = DatabaseHandler(requireContext())
 
+        // Attempt to delete the account and check if it was successful
+        val wasDeleted = databaseHandler.deleteAccount(accountName)
 
+        if (wasDeleted) {
+            // Account was deleted, refresh the UI to show updated account list
+            loadAccounts()
+            Toast.makeText(requireContext(), "Account deleted", Toast.LENGTH_SHORT).show()
+        } else {
+            // Failed to delete account, likely the account wasn't found
+            Toast.makeText(requireContext(), "Failed to delete account", Toast.LENGTH_SHORT).show()
+        }
     }
+
+
 
 }

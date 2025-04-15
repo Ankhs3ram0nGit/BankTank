@@ -76,11 +76,34 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
         }
     }
 
-    fun deleteAccountById(id: Int) {
-        val db = writableDatabase
-        db.delete("Accounts", "id = ?", arrayOf(id.toString()))
+    fun deleteAccount(accountName: String): Boolean {
+        val db = this.writableDatabase
+
+        // Delete row where name matches
+        val result = db.delete(
+            TABLE_NAME,
+            "$COL_NAME = ?",
+            arrayOf(accountName)
+        )
+
         db.close()
+
+        if (result == 0) {
+            // If no rows were deleted
+            Toast.makeText(context, "Failed to delete account", Toast.LENGTH_SHORT).show()
+            Log.e("Database", "Delete failed: No matching account for name=${accountName}")
+            return false
+        } else {
+            // Successful deletion
+            Toast.makeText(context, "Account deleted successfully", Toast.LENGTH_SHORT).show()
+            Log.d("Database", "Account deleted: Name=${accountName}")
+            return true
+        }
     }
+
+
+
+
 
     fun updateAccount(account: Account) {
         val db = this.writableDatabase
