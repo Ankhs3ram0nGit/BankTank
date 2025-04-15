@@ -15,22 +15,25 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent">
 
+        <!-- Horizontal layout for Save and Delete buttons -->
         <EditText
-            android:id="@+id/editTextNewName"
+            android:id="@+id/editBalance"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Account Name"
-            android:inputType="text" />
+            android:ems="10"
+            android:hint="0.00"
+            android:inputType="numberDecimal"
+            android:paddingTop="50dp"
+            android:textSize="60sp" />
 
         <Spinner
-            android:id="@+id/colorSpinner"
+            android:id="@+id/AccountColor"
             android:layout_width="match_parent"
             android:layout_height="61dp"
             android:layout_marginTop="16dp"
             android:layout_marginBottom="16dp"
             android:entries="@array/account_color_names" />
 
-        <!-- Horizontal layout for Save and Delete buttons -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

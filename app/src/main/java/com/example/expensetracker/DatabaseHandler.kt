@@ -51,9 +51,63 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
         return accountList
     }
 
-    fun deleteAccount(accountName: String) {
+    fun getAccountByName(name: String): Account? {
+        val db = readableDatabase
+        val cursor = db.query(
+            "Accounts",
+            arrayOf("id", "name", "balance", "color"),
+            "name = ?",
+            arrayOf(name),
+            null, null, null
+        )
+
+        return if (cursor.moveToFirst()) {
+            val account = Account(
+                cursor.getInt(cursor.getColumnIndexOrThrow("id")),
+                cursor.getString(cursor.getColumnIndexOrThrow("name")),
+                cursor.getDouble(cursor.getColumnIndexOrThrow("balance")),
+                cursor.getString(cursor.getColumnIndexOrThrow("color"))
+            )
+            cursor.close()
+            account
+        } else {
+            cursor.close()
+            null
+        }
+    }
+
+    fun deleteAccountById(id: Int) {
+        val db = writableDatabase
+        db.delete("Accounts", "id = ?", arrayOf(id.toString()))
+        db.close()
+    }
+
+    fun updateAccount(account: Account) {
         val db = this.writableDatabase
-        db.delete("Accounts", "name = ?", arrayOf(accountName))
+        val contentValues = ContentValues()
+
+        // Set the new values to be updated
+        contentValues.put(COL_BALANCE, account.balance)
+        contentValues.put(COL_COLOR, account.color)
+
+        // Update row where name matches
+        val result = db.update(
+            TABLE_NAME,
+            contentValues,
+            "$COL_NAME = ?",
+            arrayOf(account.name)
+        )
+
+        if (result == 0) {
+            // If no rows were updated
+            Toast.makeText(context, "Failed to update account", Toast.LENGTH_SHORT).show()
+            Log.e("Database", "Update failed: No matching account for name=${account.name}")
+        } else {
+            // Successful update
+            Toast.makeText(context, "Account updated successfully", Toast.LENGTH_SHORT).show()
+            Log.d("Database", "Account updated: Name=${account.name}, New Balance=${account.balance}, New Color=${account.color}")
+        }
+
         db.close()
     }
 
