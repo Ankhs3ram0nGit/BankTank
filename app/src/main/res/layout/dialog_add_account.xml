@@ -5,13 +5,20 @@
     android:orientation="vertical"
     android:padding="16dp">
 
-
     <EditText
         android:id="@+id/AccountName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="Account Name"
         android:inputType="text"
+        android:textSize="34sp" />
+
+    <EditText
+        android:id="@+id/AccountNumber"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Account Number"
+        android:inputType="number"
         android:textSize="34sp" />
 
     <Spinner
@@ -22,15 +29,33 @@
         android:layout_marginBottom="16dp"
         android:entries="@array/account_color_names" />
 
-    <EditText
-        android:id="@+id/AccountBalance"
+    <!-- New horizontal row for Balance + Currency -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:ems="10"
-        android:hint="0.00"
-        android:inputType="numberDecimal"
-        android:paddingTop="50dp"
-        android:textSize="60sp" />
+        android:orientation="horizontal">
+
+        <EditText
+            android:id="@+id/AccountBalance"
+            android:layout_width="224dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:autoSizeStepGranularity="2sp"
+            android:autoSizeTextType="uniform"
+            android:gravity="start|center_vertical"
+            android:hint="0.00"
+            android:inputType="numberDecimal"
+            android:maxLines="1"
+            android:textSize="25sp"/>
+
+        <Spinner
+            android:id="@+id/CurrencySpinner"
+            android:layout_width="wrap_content"
+            android:layout_height="53dp"
+            android:layout_marginStart="8dp"
+            android:textSize="34sp"
+            android:entries="@array/currency_types" />
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/radius"

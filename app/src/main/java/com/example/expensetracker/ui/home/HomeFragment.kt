@@ -60,7 +60,7 @@ class HomeFragment : Fragment() {
 
         // Create rectangle views for each account
         accountList.forEach { account ->
-            val rectangleView = createRectangleView(account.name, account.balance, account.color)
+            val rectangleView = createRectangleView(account.name, account.balance, account.color, account.currency, account.accountNumber)
             binding.container.addView(rectangleView)
         }
     }
@@ -73,6 +73,8 @@ class HomeFragment : Fragment() {
         val buttonConfirm = dialogView.findViewById<Button>(R.id.buttonConfirm)
         val editTextAccountBalance = dialogView.findViewById<EditText>(R.id.AccountBalance)
         val editSpinnerAccountColor = dialogView.findViewById<Spinner>(R.id.AccountColor)
+        val editTextAccountNumber = dialogView.findViewById<EditText>(R.id.AccountNumber)
+        val editTextCurrency = dialogView.findViewById<Spinner>(R.id.CurrencySpinner)
 
         val dialogBuilder = AlertDialog.Builder(requireContext(), R.style.CustomDialogStyle)
             .setView(dialogView)
@@ -88,12 +90,18 @@ class HomeFragment : Fragment() {
             val accountName = editTextAccountName.text.toString().trim()
             val accountBalanceStr = editTextAccountBalance.text.toString().trim()
             val accountColor =  editSpinnerAccountColor.selectedItem.toString().trim()
+            val accountNumber = editTextAccountNumber.text.toString().trim()
+            val currency =  editTextCurrency.selectedItem.toString().trim()
 
-            if (accountName.isNotEmpty() && accountBalanceStr.isNotEmpty()) {
+            // Check if account number already exists in the database
+            if (databaseHandler.getAccountByNumber(accountNumber) != null) {
+                // Show error message and allow user to change account number
+                Toast.makeText(requireContext(), "Account number already exists. Please choose a different number.", Toast.LENGTH_SHORT).show()
+            } else if (accountName.isNotEmpty() && accountBalanceStr.isNotEmpty()) {
                 try {
                     val accountBalance = accountBalanceStr.toDouble()
-                    addAccount(accountName, accountBalance, accountColor)
-                    alertDialog.dismiss()
+                    addAccount(accountName, accountBalance, accountColor, accountNumber, currency)
+                    alertDialog.dismiss()  // Close the dialog if the account was added successfully
                 } catch (e: NumberFormatException) {
                     // Handle invalid number format for account balance
                     // Show error message or log the error
@@ -102,39 +110,45 @@ class HomeFragment : Fragment() {
                 // Show error or handle empty input
             }
         }
+
     }
 
-    private fun addAccount(accountName: String, accountBalance: Double, accountColor: String) {
-        // val color = if (accountColor.isNotEmpty()) accountColor else "DefaultColor"
+    private fun addAccount(accountName: String, accountBalance: Double, accountColor: String, accountNumber: String, currency: String) {
+        // Check if account with the same accountNumber already exists
+        val existingAccount = databaseHandler.getAccountByNumber(accountNumber)
+
+        if (existingAccount != null) {
+            // Account already exists, show an error message
+            Toast.makeText(requireContext(), "Account with this number already exists. Please alter it.", Toast.LENGTH_SHORT).show()
+            return // Don't proceed with adding the account
+        }
+
+        // Continue if the account doesn't exist
         val accountColor = colorNameMap[accountColor] ?: "account_gray"
 
         // Create an account object
-        val account = Account(accountName, accountBalance, accountColor)
-        // account.color = color
-
-        // Initialize DatabaseHandler instance (can be initialized elsewhere if required)
-        val databaseHandler = DatabaseHandler(requireContext())
+        val account = Account(accountName, accountBalance, accountColor, accountNumber, currency)
 
         // Insert the account into the database
         databaseHandler.insertData(account)
 
         // Update the UI with the new account view
         val accountContainer = binding.container
-        val rectangleView = createRectangleView(accountName, accountBalance, accountColor)
+        val rectangleView = createRectangleView(accountName, accountBalance, accountColor, accountNumber, currency)
         accountContainer.addView(rectangleView)
+        loadAccounts()
     }
 
-    private fun createRectangleView(accountName: String, accountBalance: Double, accountColor: String): View {
+
+    private fun createRectangleView(accountName: String, accountBalance: Double, accountColor: String, currency: String, accountNumber: String): View {
         val inflater = LayoutInflater.from(requireContext())
-        // Inflate the account rectangle layout which already has background styling
         val rectangleLayout = inflater.inflate(R.layout.account_rectangle, null) as ConstraintLayout
 
-        // Set margins between items
         val layoutParams = ViewGroup.MarginLayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
-        layoutParams.setMargins(0, 0, 0, 32) // Adjust margins as needed
+        layoutParams.setMargins(0, 0, 0, 32)
         rectangleLayout.layoutParams = layoutParams
 
         rectangleLayout.tag = accountName
@@ -144,48 +158,40 @@ class HomeFragment : Fragment() {
         val editButton = rectangleLayout.findViewById<Button>(R.id.editAccountButton)
 
         nameTextView.text = accountName
-        balanceTextView.text = "$accountBalance"
+        balanceTextView.text = "$currency $accountBalance"
 
-        // Set text color if needed (optional)
         nameTextView.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
         balanceTextView.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
 
-        // Set background color dynamically based on accountColor (from colors.xml)
         val colorResId = resources.getIdentifier(accountColor, "color", requireContext().packageName)
         if (colorResId != 0) {
-            // Set the background color using the predefined color from colors.xml
             val colorInt = ContextCompat.getColor(requireContext(), colorResId)
-            // Instead of setting background color directly, set the drawable background dynamically if needed
             val drawable = ContextCompat.getDrawable(requireContext(), R.drawable.rectangle_background) as GradientDrawable
-            drawable.setColor(colorInt)  // Set the color on the background drawable
+            drawable.setColor(colorInt)
             rectangleLayout.background = drawable
         } else {
-            // Default to gray if the color name doesn't match any defined colors
             val drawable = ContextCompat.getDrawable(requireContext(), R.drawable.rectangle_background) as GradientDrawable
             drawable.setColor(ContextCompat.getColor(requireContext(), R.color.account_gray))
             rectangleLayout.background = drawable
         }
 
-        // After setting the account background color
         val colorInt = if (colorResId != 0) {
             ContextCompat.getColor(requireContext(), colorResId)
         } else {
             ContextCompat.getColor(requireContext(), R.color.account_gray)
         }
 
-        // Set button background color
         editButton.setBackgroundColor(colorInt)
-
-        // Optional: Adjust text color for contrast (white text on dark background)
         editButton.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
 
-
         editButton.setOnClickListener {
-            showEditAccountDialog(accountName, accountBalance)
+            showEditAccountDialog(accountName, accountBalance, accountNumber, currency)
         }
+
 
         return rectangleLayout
     }
+
 
     val colorNameMap = mapOf(
         "Green" to "account_green",
@@ -201,14 +207,16 @@ class HomeFragment : Fragment() {
 
 
 
-    private fun showEditAccountDialog(accountName: String, accountBalance: Double) {
+    private fun showEditAccountDialog(accountName: String, accountBalance: Double,  accountNumber: String, currency: String) {
         val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_edit_account, null)
         val colorSpinner = dialogView.findViewById<Spinner>(R.id.AccountColor)
         val editBalance = dialogView.findViewById<EditText>(R.id.editBalance)
+        val editAccountNumber = dialogView.findViewById<EditText>(R.id.AccountNumber)
         val buttonSave = dialogView.findViewById<Button>(R.id.buttonSave)
         val buttonDelete = dialogView.findViewById<Button>(R.id.buttonDelete)
 
         editBalance.setText(accountBalance.toString())
+        editAccountNumber.setText(accountNumber)
 
         val dialogBuilder = AlertDialog.Builder(requireContext(), R.style.CustomDialogStyle)
             .setView(dialogView)
@@ -242,21 +250,35 @@ class HomeFragment : Fragment() {
             val selectedColorDisplayName = colorSpinner.selectedItem.toString()
             val newColorName = colorNameMap[selectedColorDisplayName] ?: "account_gray"
             val newBalance = editBalance.text.toString().toDoubleOrNull()
+            val newAccountNumber = editAccountNumber.text.toString().trim()
 
+            // Ensure balance is valid
             if (newBalance == null) {
                 Toast.makeText(requireContext(), "Invalid balance entered", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
+            // Check if the new account number already exists (but not for the current account)
+            val existingAccount = databaseHandler.getAccountByNumber(newAccountNumber)
+            if (existingAccount != null && existingAccount.accountNumber != accountNumber) {
+                // Show error message and don't proceed
+                Toast.makeText(requireContext(), "Account number already exists. Please choose a different number.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            // Proceed with the update if everything is valid
             updateAccount(
                 accountName = accountName,
                 accountBalance = newBalance,
-                newColorName = newColorName
+                newColorName = newColorName,
+                accountNumber = newAccountNumber,
+                currency = currency
             )
 
             alertDialog.dismiss()
-            loadAccounts()
+            loadAccounts()  // Reload accounts to reflect changes
         }
+
 
         buttonDelete.setOnClickListener {
             deleteAccount(accountName)
@@ -266,11 +288,11 @@ class HomeFragment : Fragment() {
 
 
 
-    private fun updateAccount(accountName: String, accountBalance: Double, newColorName: String) {
+    private fun updateAccount(accountName: String, accountBalance: Double, newColorName: String, accountNumber: String, currency: String) {
         val databaseHandler = DatabaseHandler(requireContext())
 
         // Step 1: Create updated account object with color STRING name
-        val updatedAccount = Account(accountName, accountBalance, newColorName)
+        val updatedAccount = Account(accountName, accountBalance, newColorName, accountNumber, currency)
         databaseHandler.updateAccount(updatedAccount)
 
         // Step 2: Find and update the UI element (rectangle) by tag

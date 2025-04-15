@@ -26,6 +26,14 @@
             android:paddingTop="50dp"
             android:textSize="60sp" />
 
+        <EditText
+            android:id="@+id/AccountNumber"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Account Number"
+            android:inputType="number"
+            android:textSize="34sp" />
+
         <Spinner
             android:id="@+id/AccountColor"
             android:layout_width="match_parent"

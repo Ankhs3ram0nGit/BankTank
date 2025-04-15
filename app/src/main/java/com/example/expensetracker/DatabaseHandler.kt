@@ -14,21 +14,70 @@ val COL_ID = "Account_ID"
 val COL_NAME = "Account_Name"
 val COL_BALANCE = "Balance"
 val COL_COLOR = "Color"
+val COL_AccountNumber = "Account_Number"
+val COL_CURRENCY = "Currency"
 
-class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, 1) {
+class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, 2) {
 
     // Create the database table
     override fun onCreate(db: SQLiteDatabase?) {
         val createTable = """
-            CREATE TABLE IF NOT EXISTS $TABLE_NAME (
-                $COL_ID INTEGER PRIMARY KEY AUTOINCREMENT,
-                $COL_NAME TEXT,
-                $COL_BALANCE DOUBLE,
-                $COL_COLOR TEXT
-            );
-        """
+        CREATE TABLE IF NOT EXISTS $TABLE_NAME (
+            $COL_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            $COL_NAME TEXT NOT NULL UNIQUE,
+            $COL_BALANCE DOUBLE,
+            $COL_COLOR TEXT,
+            $COL_AccountNumber TEXT,
+            $COL_CURRENCY TEXT
+        );
+    """.trimIndent()
+
         db?.execSQL(createTable)
+
+        // Add unique constraint only for non-null Account Numbers
+        val createUniqueIndex = """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_account_number 
+        ON $TABLE_NAME($COL_AccountNumber) 
+        WHERE $COL_AccountNumber IS NOT NULL;
+    """.trimIndent()
+
+        db?.execSQL(createUniqueIndex)
     }
+    fun getAccountByNumber(accountNumber: String): Account? {
+        val db = this.readableDatabase
+        val query = "SELECT * FROM $TABLE_NAME WHERE $COL_AccountNumber = ?"
+        val cursor = db.rawQuery(query, arrayOf(accountNumber))
+
+        // Ensure the cursor has a valid row
+        if (cursor != null && cursor.moveToFirst()) {
+            // Accessing columns with checks to ensure they exist and are not null
+            val nameIndex = cursor.getColumnIndex(COL_NAME)
+            val balanceIndex = cursor.getColumnIndex(COL_BALANCE)
+            val colorIndex = cursor.getColumnIndex(COL_COLOR)
+            val currencyIndex = cursor.getColumnIndex(COL_CURRENCY)
+
+            // Check if any of the column indices are invalid (column might not exist)
+            if (nameIndex == -1 || balanceIndex == -1 || colorIndex == -1 || currencyIndex == -1) {
+                cursor.close()
+                return null
+            }
+
+            // Now retrieve the data with appropriate null checks
+            val name = cursor.getString(nameIndex)
+            val balance = cursor.getDouble(balanceIndex)
+            val color = cursor.getString(colorIndex)
+            val currency = cursor.getString(currencyIndex)
+
+            // Return the account
+            return Account(name, balance, color, accountNumber, currency)
+        }
+
+        // Close cursor to avoid memory leaks
+        cursor?.close()
+        return null
+    }
+
+
     fun getAllAccounts(): List<Account> {
         val accountList = mutableListOf<Account>()
         val db = this.readableDatabase
@@ -40,8 +89,10 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
                 val name = cursor.getString(cursor.getColumnIndexOrThrow("Account_Name"))
                 val balance = cursor.getDouble(cursor.getColumnIndexOrThrow("Balance"))
                 val color = cursor.getString(cursor.getColumnIndexOrThrow("Color"))
+                val accountNumber = cursor.getString(cursor.getColumnIndexOrThrow("Account_Number"))
+                val currency = cursor.getString(cursor.getColumnIndexOrThrow("Currency"))
 
-                val account = Account(id, name, balance, color)
+                val account = Account(id, name, balance, color, accountNumber, currency)
                 accountList.add(account)
             } while (cursor.moveToNext())
         }
@@ -55,7 +106,7 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
         val db = readableDatabase
         val cursor = db.query(
             "Accounts",
-            arrayOf("id", "name", "balance", "color"),
+            arrayOf("id", "name", "balance", "color", "accountNumber", "currency"),
             "name = ?",
             arrayOf(name),
             null, null, null
@@ -66,7 +117,9 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
                 cursor.getInt(cursor.getColumnIndexOrThrow("id")),
                 cursor.getString(cursor.getColumnIndexOrThrow("name")),
                 cursor.getDouble(cursor.getColumnIndexOrThrow("balance")),
-                cursor.getString(cursor.getColumnIndexOrThrow("color"))
+                cursor.getString(cursor.getColumnIndexOrThrow("color")),
+                cursor.getString(cursor.getColumnIndexOrThrow("accountNumber")),
+                cursor.getString(cursor.getColumnIndexOrThrow("currency"))
             )
             cursor.close()
             account
@@ -112,6 +165,8 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
         // Set the new values to be updated
         contentValues.put(COL_BALANCE, account.balance)
         contentValues.put(COL_COLOR, account.color)
+        contentValues.put(COL_CURRENCY, account.currency)
+        contentValues.put(COL_AccountNumber, account.accountNumber)
 
         // Update row where name matches
         val result = db.update(
@@ -150,6 +205,8 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
         contentValues.put(COL_NAME, account.name)
         contentValues.put(COL_BALANCE, account.balance)
         contentValues.put(COL_COLOR, account.color)
+        contentValues.put(COL_CURRENCY, account.currency)
+        contentValues.put(COL_AccountNumber, account.accountNumber)
 
         // Insert into the database
         val result = db.insert(TABLE_NAME, null, contentValues)
@@ -161,7 +218,7 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
         } else {
             // If insertion succeeded
             Toast.makeText(context, "Account added successfully", Toast.LENGTH_SHORT).show()
-            Log.d("Database", "Account added: Name=${account.name}, Balance=${account.balance}, Color=${account.color}")
+            Log.d("Database", "Account added: Name=${account.name}, Balance=${account.balance}, Color=${account.color}, AccountNUmber=${account.accountNumber}, Currency=${account.currency}")
         }
 
         db.close() // Ensure the database is closed after the operation
