@@ -4,6 +4,7 @@ import com.example.expensetracker.Account
 import com.example.expensetracker.DatabaseHandler
 import android.app.AlertDialog
 import android.graphics.drawable.GradientDrawable
+import android.icu.text.NumberFormat
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -20,6 +21,7 @@ import com.example.expensetracker.databinding.FragmentHomeBinding
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import androidx.core.content.ContextCompat
 import com.example.expensetracker.R
+import java.util.Locale
 
 class HomeFragment : Fragment() {
 
@@ -158,7 +160,8 @@ class HomeFragment : Fragment() {
         val editButton = rectangleLayout.findViewById<Button>(R.id.editAccountButton)
 
         nameTextView.text = accountName
-        balanceTextView.text = "$currency $accountBalance"
+        val formattedBalance = NumberFormat.getNumberInstance(Locale.US).format(accountBalance)
+        balanceTextView.text = formattedBalance
 
         nameTextView.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
         balanceTextView.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
@@ -187,6 +190,8 @@ class HomeFragment : Fragment() {
         editButton.setOnClickListener {
             showEditAccountDialog(accountName, accountBalance, accountNumber, currency)
         }
+        val currencyTextView = rectangleLayout.findViewById<TextView>(R.id.accountCurrencyText)
+        currencyTextView.text = currency
 
 
         return rectangleLayout

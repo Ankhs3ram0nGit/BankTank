@@ -39,4 +39,9 @@ class OtherFragment : Fragment() {
         super.onDestroyView()
         _binding = null
     }
+
+    private fun createSalaryRectangle() {
+
+    }
 }
+

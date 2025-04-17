@@ -17,6 +17,13 @@ val COL_COLOR = "Color"
 val COL_AccountNumber = "Account_Number"
 val COL_CURRENCY = "Currency"
 
+
+val TABLE_INCOME = "Income"
+val COL_INCOME_ID = "Income_ID"
+val COL_INCOME_AMOUNT = "Income_Amount"
+val COL_INCOME_DESCRIPTION = "Income_Description"
+
+
 class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, 2) {
 
     // Create the database table
@@ -42,6 +49,16 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
     """.trimIndent()
 
         db?.execSQL(createUniqueIndex)
+
+        val createIncomeTable = """
+        CREATE TABLE IF NOT EXISTS $TABLE_INCOME (
+            $COL_INCOME_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            $COL_INCOME_AMOUNT DOUBLE NOT NULL,
+            $COL_INCOME_DESCRIPTION TEXT
+        );
+    """.trimIndent()
+
+        db?.execSQL(createIncomeTable)
     }
     fun getAccountByNumber(accountNumber: String): Account? {
         val db = this.readableDatabase
@@ -223,4 +240,28 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
 
         db.close() // Ensure the database is closed after the operation
     }
+
+
+    fun insertIncome(amount: Double, description: String) {
+        val db = this.writableDatabase
+        val contentValues = ContentValues().apply {
+            put(COL_INCOME_AMOUNT, amount)
+            put(COL_INCOME_DESCRIPTION, description)
+        }
+
+        val result = db.insert(TABLE_INCOME, null, contentValues)
+
+        if (result == -1L) {
+            Toast.makeText(context, "Failed to add income", Toast.LENGTH_SHORT).show()
+            Log.e("Database", "Failed to add income: Amount=$amount, Desc=$description")
+        } else {
+            Toast.makeText(context, "Income added", Toast.LENGTH_SHORT).show()
+            Log.d("Database", "Income added: Amount=$amount, Desc=$description")
+        }
+
+        db.close()
+    }
+
+
+
 }
