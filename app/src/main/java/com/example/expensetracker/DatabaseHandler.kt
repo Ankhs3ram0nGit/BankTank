@@ -6,6 +6,9 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.util.Log
 import android.widget.Toast
+import com.example.expensetracker.ui.dashboard.UI_Tank
+import com.example.expensetracker.ui.dashboard.DB_Tank
+
 
 // Constants for database columns
 val DATABASE_NAME = "ExpenseDB"
@@ -23,6 +26,13 @@ val COL_INCOME_ID = "Income_ID"
 val COL_INCOME_AMOUNT = "Income_Amount"
 val COL_INCOME_DESCRIPTION = "Income_Description"
 
+val COL_MAX_ALLOCATION = "Max_Allocation"
+
+val COL_TANK_ID = "Tank_ID"
+val COL_TANK_NAME = "Tank_Name"
+val COL_TANK_ALLOCATION = "Tank_Allocation"
+val COL_TANK_COLOR = "Tank_Color"
+val COL_CURRENT_ALLOCATION = "Current_Allocation"
 
 class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, 2) {
 
@@ -56,9 +66,31 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
             $COL_INCOME_AMOUNT DOUBLE NOT NULL,
             $COL_INCOME_DESCRIPTION TEXT
         );
-    """.trimIndent()
+        """.trimIndent()
 
         db?.execSQL(createIncomeTable)
+
+
+        val createTanksTable = """
+            CREATE TABLE IF NOT EXISTS Tanks (
+            $COL_TANK_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            $COL_TANK_NAME TEXT NOT NULL UNIQUE,
+            $COL_TANK_ALLOCATION DOUBLE NOT NULL,
+            $COL_TANK_COLOR TEXT,
+            $COL_CURRENT_ALLOCATION DOUBLE NOT NULL DEFAULT 0.0
+    );
+""".trimIndent()
+
+        db?.execSQL(createTanksTable)
+
+
+        val createMaxAllocationTable = """
+            CREATE TABLE IF NOT EXISTS MaxAllocation (
+            $COL_MAX_ALLOCATION DOUBLE
+    );
+""".trimIndent()
+
+        db?.execSQL(createMaxAllocationTable)
     }
     fun getAccountByNumber(accountNumber: String): Account? {
         val db = this.readableDatabase
@@ -93,6 +125,69 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
         cursor?.close()
         return null
     }
+    fun updateMaxAllocation(allocation: Double) {
+        val db = writableDatabase
+        val cv = ContentValues().apply {
+            put(COL_MAX_ALLOCATION, allocation)
+        }
+
+        // Check if there's already a value
+        val cursor = db.rawQuery("SELECT COUNT(*) FROM MaxAllocation", null)
+        cursor.moveToFirst()
+        val count = cursor.getInt(0)
+        cursor.close()
+
+        if (count == 0) {
+            // table empty → insert
+            db.insert("MaxAllocation", null, cv)
+        } else {
+            // update the sole row
+            db.update(
+                "MaxAllocation",
+                cv,
+                null,
+                null
+            )
+        }
+        db.close()
+    }
+
+
+    fun getMaxAllocation(): Double {
+        val db = readableDatabase
+        val cursor = db.rawQuery("SELECT $COL_MAX_ALLOCATION FROM MaxAllocation", null)
+        val allocation = if (cursor.moveToFirst()) {
+            cursor.getDouble(cursor.getColumnIndexOrThrow(COL_MAX_ALLOCATION))
+        } else {
+            0.0
+        }
+        cursor.close()
+        db.close()
+        return allocation
+    }
+
+    fun getRemainingAllocation(): Double {
+        val db = readableDatabase
+        var totalAllocated = 0.0
+
+        val cursor = db.rawQuery("SELECT SUM($COL_TANK_ALLOCATION) FROM Tanks", null)
+        if (cursor != null && cursor.moveToFirst()) {
+            if (!cursor.isNull(0)) {
+                totalAllocated = cursor.getDouble(0)
+            }
+        }
+        cursor?.close()
+
+        val maxAllocation = getMaxAllocation()
+        db.close()
+
+        return maxAllocation - totalAllocated
+    }
+
+
+
+
+
 
 
     fun getAllAccounts(): List<Account> {
@@ -119,32 +214,7 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
         return accountList
     }
 
-    fun getAccountByName(name: String): Account? {
-        val db = readableDatabase
-        val cursor = db.query(
-            "Accounts",
-            arrayOf("id", "name", "balance", "color", "accountNumber", "currency"),
-            "name = ?",
-            arrayOf(name),
-            null, null, null
-        )
 
-        return if (cursor.moveToFirst()) {
-            val account = Account(
-                cursor.getInt(cursor.getColumnIndexOrThrow("id")),
-                cursor.getString(cursor.getColumnIndexOrThrow("name")),
-                cursor.getDouble(cursor.getColumnIndexOrThrow("balance")),
-                cursor.getString(cursor.getColumnIndexOrThrow("color")),
-                cursor.getString(cursor.getColumnIndexOrThrow("accountNumber")),
-                cursor.getString(cursor.getColumnIndexOrThrow("currency"))
-            )
-            cursor.close()
-            account
-        } else {
-            cursor.close()
-            null
-        }
-    }
 
     fun deleteAccount(accountName: String): Boolean {
         val db = this.writableDatabase
@@ -206,6 +276,44 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
         db.close()
     }
 
+    fun updateTank(dbTank: DB_Tank, oldAllocation: Double) {
+        val db = this.writableDatabase
+        val contentValues = ContentValues()
+
+        // Set the new values to be updated
+        contentValues.put(COL_TANK_NAME, dbTank.name)
+        contentValues.put(COL_TANK_ALLOCATION, dbTank.maxAllocation)
+        contentValues.put(COL_TANK_COLOR, dbTank.color)
+
+        if (dbTank.currentAllocation > dbTank.maxAllocation) {
+            contentValues.put(COL_CURRENT_ALLOCATION, dbTank.maxAllocation)
+        } else {
+            val newAllocation = (dbTank.maxAllocation - oldAllocation)
+            val updatedAllocation = oldAllocation + newAllocation
+            contentValues.put(COL_CURRENT_ALLOCATION, updatedAllocation)
+
+        }
+
+        // Update row where name matches
+        val result = db.update(
+            "Tanks",
+            contentValues,
+            "$COL_TANK_NAME = ?",
+            arrayOf(dbTank.name)
+        )
+
+        if (result == 0) {
+            // If no rows were updated
+            Toast.makeText(context, "Failed to update account", Toast.LENGTH_SHORT).show()
+            Log.e("Database", "Update failed: No matching account for name=${dbTank.name}")
+        } else {
+            // Successful update
+            Toast.makeText(context, "Account updated successfully", Toast.LENGTH_SHORT).show()
+            Log.d("Database", "Account updated: Name=${dbTank.name}, New Balance=${dbTank.maxAllocation}, New Color=${dbTank.color}")
+        }
+
+        db.close()
+    }
 
 
     // Upgrade database if the schema changes
@@ -240,6 +348,84 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
 
         db.close() // Ensure the database is closed after the operation
     }
+
+    // Insert a new tank into the Tanks table
+    fun insertTank(dbTank: DB_Tank) {
+        val db = this.writableDatabase
+        val contentValues = ContentValues()
+
+        contentValues.put(COL_TANK_NAME, dbTank.name)
+        contentValues.put(COL_TANK_ALLOCATION, dbTank.maxAllocation)
+        contentValues.put(COL_TANK_COLOR, dbTank.color)
+        contentValues.put(COL_CURRENT_ALLOCATION, dbTank.currentAllocation)  // Add default value for the new column
+
+        val result = db.insert("Tanks", null, contentValues)
+
+        if (result == -1L) {
+            Toast.makeText(context, "Failed to add tank", Toast.LENGTH_SHORT).show()
+            Log.e("Database", "Failed to add tank")
+        } else {
+            Toast.makeText(context, "Tank added successfully", Toast.LENGTH_SHORT).show()
+            Log.d("Database", "Tank added: Name=${dbTank.name}, Max_Allocation=${dbTank.maxAllocation}, Color=${dbTank.color}")
+        }
+
+        db.close() // Close the database
+    }
+
+
+    // Fetch all tanks from the database
+    fun getAllTanks(): List<UI_Tank> {
+        val UITankList = mutableListOf<UI_Tank>()
+        val db = this.readableDatabase
+        val cursor = db.rawQuery("SELECT * FROM Tanks", null)
+
+        if (cursor.moveToFirst()) {
+            do {
+                // Fetch the data from the DB columns
+                val tankName = cursor.getString(cursor.getColumnIndexOrThrow(COL_TANK_NAME))
+                val tankAllocation = cursor.getDouble(cursor.getColumnIndexOrThrow(COL_TANK_ALLOCATION))
+                val currentAllocation = cursor.getDouble(cursor.getColumnIndexOrThrow(COL_CURRENT_ALLOCATION))  // Fetch the new column
+                val color = cursor.getString(cursor.getColumnIndexOrThrow(COL_TANK_COLOR))
+
+                // Create a UI_Tank (without tankId)
+                val uiTank = UI_Tank(tankName, tankAllocation, color ?: "#FFFFFF", currentAllocation) // Default color to white if null
+                UITankList.add(uiTank)
+            } while (cursor.moveToNext())
+        }
+
+        cursor.close()
+        db.close()
+        return UITankList
+    }
+
+
+    fun deleteTank(dbTank: DB_Tank): Boolean {
+        val db = this.writableDatabase
+
+        // Delete row where name matches
+        val result = db.delete(
+            "Tanks",
+            "$COL_TANK_NAME = ?",
+            arrayOf(dbTank.name)
+        )
+
+        db.close()
+
+        if (result == 0) {
+            // If no rows were deleted
+            Toast.makeText(context, "Failed to delete account", Toast.LENGTH_SHORT).show()
+            Log.e("Database", "Delete failed: No matching tank for name=${dbTank.name}")
+            return false
+        } else {
+            // Successful deletion
+            Toast.makeText(context, "Tank deleted successfully", Toast.LENGTH_SHORT).show()
+            Log.d("Database", "Tank deleted: Name=${dbTank.name}")
+            return true
+        }
+    }
+
+
+
 
 
     fun insertIncome(amount: Double, description: String) {

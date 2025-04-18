@@ -71,7 +71,7 @@ class HomeFragment : Fragment() {
     private fun showAddAccountDialog() {
         val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_account, null)
         val editTextAccountName = dialogView.findViewById<EditText>(R.id.AccountName)
-        val buttonCancel = dialogView.findViewById<Button>(R.id.buttonCancel)
+        val buttonCancel = dialogView.findViewById<Button>(R.id.buttonDeleteTank)
         val buttonConfirm = dialogView.findViewById<Button>(R.id.buttonConfirm)
         val editTextAccountBalance = dialogView.findViewById<EditText>(R.id.AccountBalance)
         val editSpinnerAccountColor = dialogView.findViewById<Spinner>(R.id.AccountColor)
@@ -80,7 +80,7 @@ class HomeFragment : Fragment() {
 
         val dialogBuilder = AlertDialog.Builder(requireContext(), R.style.CustomDialogStyle)
             .setView(dialogView)
-            .setCancelable(false)
+            .setCancelable(true)
         val alertDialog = dialogBuilder.create()
         alertDialog.show()
 
@@ -332,10 +332,7 @@ class HomeFragment : Fragment() {
 
 
 
-    private fun updateAccount(accountName: String) {
-        databaseHandler.getAccountByName(accountName)
 
-    }
     private fun deleteAccount(accountName: String) {
         val databaseHandler = DatabaseHandler(requireContext())
 

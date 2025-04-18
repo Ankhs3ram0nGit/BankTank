@@ -12,10 +12,20 @@
         tools:layout="@layout/fragment_home" />
 
     <fragment
-        android:id="@+id/navigation_dashboard"
+        android:id="@+id/tanksFragment"
         android:name="com.example.expensetracker.ui.dashboard.TanksFragment"
-        android:label="@string/title_dashboard"
-        tools:layout="@layout/fragment_tanks" />
+        tools:layout="@layout/fragment_tanks" >
+        <action
+            android:id="@+id/action_tanks_to_manage"
+            app:destination="@id/manageTanksFragment" />
+    </fragment>
+
+
+    <fragment
+        android:id="@+id/manageTanksFragment"
+        android:name="com.example.expensetracker.ui.dashboard.ManageTanksFragment"
+        tools:layout="@layout/fragment_manage_tanks" />
+
 
     <fragment
         android:id="@+id/navigation_notifications"

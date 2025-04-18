@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string-array name="color_options">
-        <item>Red</item>
+    <string-array name="color_names">
         <item>Green</item>
-        <item>Blue</item>
+        <item>Red</item>
         <item>Yellow</item>
-        <!-- Add more color options as needed -->
+        <item>Gray</item>
+        <item>Forest Green</item>
+        <item>Mighty Purple</item>
+        <item>Purple</item>
+        <item>Seal Blue</item>
+        <item>Royal Blue</item>
     </string-array>
+
 </resources>
