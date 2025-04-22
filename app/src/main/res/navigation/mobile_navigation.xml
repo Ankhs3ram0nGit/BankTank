@@ -18,6 +18,9 @@
         <action
             android:id="@+id/action_tanks_to_manage"
             app:destination="@id/manageTanksFragment" />
+        <action
+            android:id="@+id/action_tanks_to_tankDetails"
+            app:destination="@id/tankDetailsFragment" />
     </fragment>
 
 
@@ -38,4 +41,18 @@
         android:name="com.example.expensetracker.ui.other.OtherFragment"
         android:label="Import"
         tools:layout="@layout/fragment_other" />
+    <fragment
+        android:id="@+id/tankDetailsFragment"
+        android:name="com.example.expensetracker.ui.dashboard.TankDetailsFragment"
+        android:label="Tank Details"
+        tools:layout="@layout/tank_details" />
+    <fragment
+        android:id="@+id/accountDetailFragment"
+        android:name="com.example.expensetracker.ui.home.AccountDetailFragment"
+        tools:layout="@layout/account_details">
+        <action
+            android:id="@+id/action_home_to_accountDetailFragment"
+            app:destination="@id/accountDetailFragment" />
+    </fragment>
+
 </navigation>

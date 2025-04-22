@@ -9,7 +9,9 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.Spinner
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.expensetracker.DatabaseHandler
@@ -61,6 +63,17 @@ class ManageTanksFragment : Fragment() {
         if (savedMaxAllocation != null) {
             maxAllocationInput.setText(savedMaxAllocation.toString())
         }
+
+
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    findNavController().popBackStack()
+                }
+            }
+        )
+
+
 
         return binding.root
     }
@@ -115,10 +128,11 @@ class ManageTanksFragment : Fragment() {
 
             val capacity = capacityString.toDoubleOrNull()
 
-            if (capacity == null) {
+            if (name.isEmpty()) {
+                Toast.makeText(requireContext(), "Tank name is required", Toast.LENGTH_SHORT).show()
+            } else if (capacity == null) {
                 Toast.makeText(requireContext(), "Invalid capacity", Toast.LENGTH_SHORT).show()
             } else if (capacity > databaseHandler.getRemainingAllocation() || capacity < 1) {
-                // Show validation message and prevent dialog from dismissing
                 Toast.makeText(requireContext(), "Exceeded available allocation", Toast.LENGTH_SHORT).show()
             } else {
                 // Save the tank data (Add to your data source or database)
@@ -161,17 +175,17 @@ class ManageTanksFragment : Fragment() {
 
             val capacity = capacityString.toDoubleOrNull()
 
-            if (capacity == null) {
+            if (name.isEmpty()) {
+                Toast.makeText(requireContext(), "Tank name is required", Toast.LENGTH_SHORT).show()
+            } else if (capacity == null) {
                 Toast.makeText(requireContext(), "Invalid capacity", Toast.LENGTH_SHORT).show()
             } else if (capacity < 1) {
                 Toast.makeText(requireContext(), "Allocation cannot be less than 1", Toast.LENGTH_SHORT).show()
-            }else if (capacity > (databaseHandler.getRemainingAllocation() + tankAllocation)) {
-                // Show validation message and prevent dialog from dismissing
+            } else if (capacity > (databaseHandler.getRemainingAllocation() + tankAllocation)) {
                 Toast.makeText(requireContext(), "Exceeded available allocation", Toast.LENGTH_SHORT).show()
             } else {
-                // Save the tank data (Add to your data source or database)
                 updateTank(name, capacity, color, tankName, currentAllocation, tankAllocation)
-                dialog.dismiss() // Close the dialog when everything is valid
+                dialog.dismiss()
             }
         }
         val name = tankNameEditText.text.toString().trim()
@@ -220,7 +234,7 @@ class ManageTanksFragment : Fragment() {
     private fun loadTanks() {
         tanksList.clear()
         val dbHandler = DatabaseHandler(requireContext())
-        val loadedTanks = dbHandler.getAllTanks()
+        val loadedTanks = dbHandler.getAllTanksUI()
         tanksList.addAll(loadedTanks)
         tanksAdapter.notifyDataSetChanged()
     }

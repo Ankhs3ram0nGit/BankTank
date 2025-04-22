@@ -20,6 +20,8 @@ import androidx.fragment.app.Fragment
 import com.example.expensetracker.databinding.FragmentHomeBinding
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import androidx.core.content.ContextCompat
+import androidx.navigation.fragment.findNavController
+import androidx.navigation.navOptions
 import com.example.expensetracker.R
 import java.util.Locale
 
@@ -192,6 +194,21 @@ class HomeFragment : Fragment() {
         }
         val currencyTextView = rectangleLayout.findViewById<TextView>(R.id.accountCurrencyText)
         currencyTextView.text = currency
+
+
+// Set OnClickListener for rectangleLayout
+        rectangleLayout.setOnClickListener {
+            val bundle = Bundle().apply {
+                putString("accountName", accountName)
+                putString("accountBalance", formattedBalance)
+                putString("currency", currency)
+                putString("color", accountColor)
+            }
+
+            // Get NavController and navigate to AccountDetailFragment with the bundle
+            val navController = findNavController()
+            navController.navigate(R.id.accountDetailFragment, bundle)
+        }
 
 
         return rectangleLayout

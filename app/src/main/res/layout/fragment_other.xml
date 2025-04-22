@@ -6,17 +6,42 @@
     android:layout_height="match_parent"
     tools:context=".ui.other.OtherFragment">
 
+    <!-- Title -->
     <TextView
-        android:id="@+id/text_other"
-        android:layout_width="match_parent"
+        android:id="@+id/text_tank_settings_title"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="8dp"
-        android:textAlignment="center"
-        android:textSize="20sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:text="Tank Settings"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:layout_marginTop="24dp"
+        android:layout_marginStart="16dp"
+        android:textColor="@color/white"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <!-- Label for Switch -->
+    <TextView
+        android:id="@+id/text_invert_fill_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Invert Tank Fill"
+        android:textSize="18sp"
+        android:textColor="@color/white"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="32dp"
+        app:layout_constraintTop_toBottomOf="@id/text_tank_settings_title"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintBottom_toBottomOf="@+id/switch_invert_fill"/>
+
+    <!-- Switch -->
+    <Switch
+        android:id="@+id/switch_invert_fill"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="16dp"
+        app:layout_constraintTop_toTopOf="@id/text_invert_fill_label"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBaseline_toBaselineOf="@+id/text_invert_fill_label" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

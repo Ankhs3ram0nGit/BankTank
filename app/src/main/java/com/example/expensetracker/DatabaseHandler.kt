@@ -34,7 +34,21 @@ val COL_TANK_ALLOCATION = "Tank_Allocation"
 val COL_TANK_COLOR = "Tank_Color"
 val COL_CURRENT_ALLOCATION = "Current_Allocation"
 
-class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, 2) {
+val TABLE_TRANSACTIONS = "Transactions"
+val COL_TRANSACTION_ID = "Transaction_ID"
+val COL_ACCOUNT_ID = "Account_ID"
+val COL_TTANK_ID = "Tank_ID"
+val COL_TRANSACTION_AMOUNT = "Transaction_Amount"
+val COL_TRANSACTION_DATE = "Transaction_Date"
+val COL_TRANSACTION_DESCRIPTION = "Transaction_Description"
+val COL_TRANSACTION_TAG = "Transaction_Tag"
+val COL_TRANSACTION_BML_REFERENCE = "BML_Reference"
+val COL_TRANSACTION_BML_DATE = "BML_Date"
+val COL_TRANSACTION_TYPE = "Transaction_Type"
+
+
+
+class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, 1) {
 
     // Create the database table
     override fun onCreate(db: SQLiteDatabase?) {
@@ -91,6 +105,25 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
 """.trimIndent()
 
         db?.execSQL(createMaxAllocationTable)
+
+        val createTransactionsTable = """
+        CREATE TABLE IF NOT EXISTS $TABLE_TRANSACTIONS (
+            $COL_TRANSACTION_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            $COL_ACCOUNT_ID TEXT,
+            $COL_TTANK_ID TEXT,
+            $COL_TRANSACTION_AMOUNT DOUBLE NOT NULL,
+            $COL_TRANSACTION_DATE TEXT NOT NULL,
+            $COL_TRANSACTION_DESCRIPTION TEXT,
+            $COL_TRANSACTION_BML_REFERENCE TEXT,
+            $COL_TRANSACTION_BML_DATE TEXT,
+            $COL_TRANSACTION_TYPE TEXT,
+            $COL_TRANSACTION_TAG TEXT,
+            FOREIGN KEY($COL_ACCOUNT_ID) REFERENCES $TABLE_NAME($COL_NAME),
+            FOREIGN KEY($COL_TANK_ID) REFERENCES Tanks($COL_TANK_NAME)
+        );
+    """.trimIndent()
+
+        db?.execSQL(createTransactionsTable)
     }
     fun getAccountByNumber(accountNumber: String): Account? {
         val db = this.readableDatabase
@@ -276,6 +309,34 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
         db.close()
     }
 
+    fun updateTankAfterTransaction(dbTank: DB_Tank, transactionAmount: Double) {
+        val db = this.writableDatabase
+        val contentValues = ContentValues()
+
+        // Update current allocation only (can go negative or exceed max)
+        val newCurrentAllocation = dbTank.currentAllocation + transactionAmount
+        contentValues.put(COL_CURRENT_ALLOCATION, newCurrentAllocation)
+
+        val result = db.update(
+            "Tanks",
+            contentValues,
+            "$COL_TANK_NAME = ?",
+            arrayOf(dbTank.name)
+        )
+
+        if (result == 0) {
+            Log.e("Database", "Failed to update tank allocation for ${dbTank.name}")
+            Toast.makeText(context, "Failed to update tank allocation", Toast.LENGTH_SHORT).show()
+        } else {
+            Log.d("Database", "Tank allocation updated: ${dbTank.name} -> $newCurrentAllocation (max stays ${dbTank.maxAllocation})")
+        }
+
+        db.close()
+    }
+
+
+
+
     fun updateTank(dbTank: DB_Tank, oldAllocation: Double) {
         val db = this.writableDatabase
         val contentValues = ContentValues()
@@ -374,8 +435,8 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
 
 
     // Fetch all tanks from the database
-    fun getAllTanks(): List<UI_Tank> {
-        val UITankList = mutableListOf<UI_Tank>()
+    fun getAllTanksUI(): List<UI_Tank> {
+        val uiTankList = mutableListOf<UI_Tank>()
         val db = this.readableDatabase
         val cursor = db.rawQuery("SELECT * FROM Tanks", null)
 
@@ -389,13 +450,41 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
 
                 // Create a UI_Tank (without tankId)
                 val uiTank = UI_Tank(tankName, tankAllocation, color ?: "#FFFFFF", currentAllocation) // Default color to white if null
-                UITankList.add(uiTank)
+                uiTankList.add(uiTank)
             } while (cursor.moveToNext())
         }
 
         cursor.close()
         db.close()
-        return UITankList
+        return uiTankList
+    }
+    fun getAllTanks(): List<DB_Tank> {
+        val dbTankList = mutableListOf<DB_Tank>()
+        val db = this.readableDatabase
+        val cursor = db.rawQuery("SELECT * FROM Tanks", null)
+
+        if (cursor.moveToFirst()) {
+            do {
+                val id = cursor.getInt(cursor.getColumnIndexOrThrow(COL_TANK_ID))
+                val name = cursor.getString(cursor.getColumnIndexOrThrow(COL_TANK_NAME))
+                val maxAllocation = cursor.getDouble(cursor.getColumnIndexOrThrow(COL_TANK_ALLOCATION))
+                val currentAllocation = cursor.getDouble(cursor.getColumnIndexOrThrow(COL_CURRENT_ALLOCATION))
+                val color = cursor.getString(cursor.getColumnIndexOrThrow(COL_TANK_COLOR))
+
+                val dbTank = DB_Tank(
+                    id = id,
+                    name = name,
+                    maxAllocation = maxAllocation,
+                    currentAllocation = currentAllocation,
+                    color = color
+                )
+                dbTankList.add(dbTank)
+            } while (cursor.moveToNext())
+        }
+
+        cursor.close()
+        db.close()
+        return dbTankList
     }
 
 
@@ -447,6 +536,121 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
 
         db.close()
     }
+
+    fun getAllTransactionsForAccount(accountId: String): List<TransactionData> {
+        val transactionList = mutableListOf<TransactionData>()
+        val db = readableDatabase
+
+        // filter by Account_ID, not Account_Name
+        val cursor = db.rawQuery(
+            "SELECT * FROM $TABLE_TRANSACTIONS WHERE $COL_ACCOUNT_ID = ?",
+            arrayOf(accountId)
+        )
+
+        if (cursor.moveToFirst()) {
+            do {
+                // read all columns—now including tag, bml, type…
+                val id        = cursor.getInt(cursor.getColumnIndexOrThrow(COL_TRANSACTION_ID))
+                val accId     = cursor.getString(cursor.getColumnIndexOrThrow(COL_ACCOUNT_ID))
+                val tankId    = cursor.getString(cursor.getColumnIndexOrThrow(COL_TANK_ID))
+                val amount    = cursor.getDouble(cursor.getColumnIndexOrThrow(COL_TRANSACTION_AMOUNT))
+                val date      = cursor.getString(cursor.getColumnIndexOrThrow(COL_TRANSACTION_DATE))
+                val desc      = cursor.getString(cursor.getColumnIndexOrThrow(COL_TRANSACTION_DESCRIPTION))
+                val tag       = cursor.getString(cursor.getColumnIndexOrThrow(COL_TRANSACTION_TAG))
+                val bmlRef    = cursor.getString(cursor.getColumnIndexOrThrow(COL_TRANSACTION_BML_REFERENCE))
+                val bmlDate   = cursor.getString(cursor.getColumnIndexOrThrow(COL_TRANSACTION_BML_DATE))
+                val txType    = cursor.getString(cursor.getColumnIndexOrThrow(COL_TRANSACTION_TYPE))
+
+                transactionList += TransactionData(
+                    transactionId   = id,
+                    accountId       = accId,
+                    tankId          = tankId,
+                    amount          = amount,
+                    date            = date,
+                    description     = desc,
+                    tag             = tag,
+                    bmlReference    = bmlRef,
+                    bmlDate         = bmlDate,
+                    transactionType = txType
+                )
+            } while (cursor.moveToNext())
+        }
+
+        cursor.close()
+        db.close()
+        return transactionList
+    }
+
+    fun getAllTransactionsForTank(tankName: String): List<TransactionData> {
+        val transactionList = mutableListOf<TransactionData>()
+        val db = readableDatabase
+
+        val cursor = db.rawQuery(
+            "SELECT * FROM $TABLE_TRANSACTIONS WHERE $COL_TANK_ID = ?",
+            arrayOf(tankName)
+        )
+
+        if (cursor.moveToFirst()) {
+            do {
+                val id        = cursor.getInt(cursor.getColumnIndexOrThrow(COL_TRANSACTION_ID))
+                val accId     = cursor.getString(cursor.getColumnIndexOrThrow(COL_ACCOUNT_ID))
+                val tId       = cursor.getString(cursor.getColumnIndexOrThrow(COL_TANK_ID))
+                val amount    = cursor.getDouble(cursor.getColumnIndexOrThrow(COL_TRANSACTION_AMOUNT))
+                val date      = cursor.getString(cursor.getColumnIndexOrThrow(COL_TRANSACTION_DATE))
+                val desc      = cursor.getString(cursor.getColumnIndexOrThrow(COL_TRANSACTION_DESCRIPTION))
+                val tag       = cursor.getString(cursor.getColumnIndexOrThrow(COL_TRANSACTION_TAG))
+                val bmlRef    = cursor.getString(cursor.getColumnIndexOrThrow(COL_TRANSACTION_BML_REFERENCE))
+                val bmlDate   = cursor.getString(cursor.getColumnIndexOrThrow(COL_TRANSACTION_BML_DATE))
+                val txType    = cursor.getString(cursor.getColumnIndexOrThrow(COL_TRANSACTION_TYPE))
+
+                transactionList += TransactionData(
+                    transactionId   = id,
+                    accountId       = accId,
+                    tankId          = tId,
+                    amount          = amount,
+                    date            = date,
+                    description     = desc,
+                    tag             = tag,
+                    bmlReference    = bmlRef,
+                    bmlDate         = bmlDate,
+                    transactionType = txType
+                )
+            } while (cursor.moveToNext())
+        }
+
+        cursor.close()
+        db.close()
+        return transactionList
+    }
+
+
+    fun insertTransaction(transactionData: TransactionData): Long {
+        val db = this.writableDatabase
+        val cv = ContentValues().apply {
+            put(COL_ACCOUNT_ID,        transactionData.accountId)
+            put(COL_TANK_ID,           transactionData.tankId)
+            put(COL_TRANSACTION_AMOUNT,transactionData.amount)
+            put(COL_TRANSACTION_DATE,  transactionData.date)
+            put(COL_TRANSACTION_DESCRIPTION, transactionData.description)
+            put(COL_TRANSACTION_TAG,   transactionData.tag)
+            put(COL_TRANSACTION_BML_REFERENCE, transactionData.bmlReference)
+            put(COL_TRANSACTION_BML_DATE,      transactionData.bmlDate)
+            put(COL_TRANSACTION_TYPE, transactionData.transactionType)
+        }
+        val rowId = db.insert(TABLE_TRANSACTIONS, null, cv)
+        if (rowId == -1L) {
+            Log.e("DB", "Failed to add tx: $transactionData")
+            Toast.makeText(context, "Failed to add transaction", Toast.LENGTH_SHORT).show()
+        } else {
+            Log.d("DB", "Inserted tx #$rowId")
+            Toast.makeText(context, "Transaction added", Toast.LENGTH_SHORT).show()
+        }
+        // don't close the DB here! let the caller finish its work, then close.
+        return rowId
+    }
+
+
+
 
 
 

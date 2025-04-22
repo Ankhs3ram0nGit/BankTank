@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Description -->
+        <EditText
+            android:id="@+id/Description"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Description"
+            android:inputType="text"
+            android:textSize="18sp"
+            android:padding="12dp"/>
+
+        <!-- Tags -->
+        <EditText
+            android:id="@+id/Tags"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Tag(s)"
+            android:inputType="text"
+            android:textSize="18sp"
+            android:padding="12dp"
+            android:layout_marginTop="12dp"/>
+
+        <!-- Tank Spinner -->
+        <Spinner
+            android:id="@+id/Tank"
+            android:layout_width="match_parent"
+            android:layout_height="37dp"
+            android:layout_marginTop="16dp" />
+
+        <!-- Account Spinner -->
+        <Spinner
+            android:id="@+id/Account"
+            android:layout_width="match_parent"
+            android:layout_height="39dp"
+            android:layout_marginTop="12dp" />
+
+        <!-- Amount -->
+        <EditText
+            android:id="@+id/Amount"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="0.00"
+            android:inputType="numberDecimal"
+            android:maxLines="1"
+            android:textSize="22sp"
+            android:padding="12dp"
+            android:layout_marginTop="12dp"/>
+
+        <!-- BML Reference -->
+        <EditText
+            android:id="@+id/BML_Reference"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="BML Reference"
+            android:inputType="text"
+            android:textSize="18sp"
+            android:padding="12dp"
+            android:layout_marginTop="12dp" />
+
+        <!-- BML Date -->
+        <EditText
+            android:id="@+id/BML_Date"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="BML Date"
+            android:inputType="text"
+            android:textSize="18sp"
+            android:padding="12dp"
+            android:layout_marginTop="12dp" />
+
+        <!-- Expense / Income Buttons -->
+        <LinearLayout
+            android:id="@+id/radius"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="16dp"
+            android:gravity="center">
+
+
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

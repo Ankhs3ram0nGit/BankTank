@@ -1,21 +1,17 @@
 package com.example.expensetracker.ui.dashboard
 
-import android.graphics.drawable.ColorDrawable
+import android.content.Context
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentTransaction
-import androidx.lifecycle.ViewModelProvider
-import androidx.navigation.Navigation.findNavController
 import androidx.navigation.fragment.findNavController
 import com.example.expensetracker.DatabaseHandler
 import com.example.expensetracker.R
@@ -46,7 +42,7 @@ class TanksFragment : Fragment() {
         }
 
         // Load data from DB
-        val tanks = databaseHandler.getAllTanks()
+        val tanks = databaseHandler.getAllTanksUI()
         val maxAllocation = databaseHandler.getMaxAllocation().coerceAtLeast(1.0)
 
         // Populate the UI with your vertical tubes
@@ -109,19 +105,30 @@ class TanksFragment : Fragment() {
                 }
             }
 
+            val sharedPrefs = requireContext().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+            val invertFill = sharedPrefs.getBoolean("invert_fill", false)
+
+
             // colored fill with rounded corners
             val fillDrawable = GradientDrawable().apply {
                 cornerRadius = 12.dp().toFloat()
                 setColor(fillColor)
             }
+
+
+            val rawRatio = (tank.currentAllocation / tank.allocation).coerceIn(0.0, 1.0)
+            val fillRatio = if (invertFill) 1.0 - rawRatio else rawRatio
+            val fillHeight = (tubeHeight * fillRatio).toInt()
+
             val fillView = View(requireContext()).apply {
                 layoutParams = FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
-                    tubeHeight,
+                    fillHeight,
                     Gravity.BOTTOM
                 )
                 background = fillDrawable
             }
+
             tubeCanvas.addView(fillView)
 
             // outline overlay, same height
@@ -155,6 +162,18 @@ class TanksFragment : Fragment() {
             // Add name and allocation text views to the tank layout (text is below the tube)
             tankLayout.addView(nameView)
             tankLayout.addView(allocationView)
+
+            tankLayout.setOnClickListener {
+                val bundle = Bundle().apply {
+                    putString("name", tank.name)
+                    putString("color", tank.color)
+                    putDouble("allocation", tank.allocation)
+                    putDouble("currentAllocation", tank.currentAllocation)
+                }
+
+                findNavController().navigate(R.id.action_tanks_to_tankDetails, bundle)
+
+            }
 
             // Now add the entire tank layout (tube + text) to the container
             container.addView(tankLayout)
