@@ -73,7 +73,7 @@ Track how much progress you've made toward each goal.
 ### Other Screen
 Currently it has some settings features such as starting a new financial cycle and inverting the tank fill view.
 
-Starting a new cycle will move whatever is left from you tanks over to your savings. This is when you receive your income and start your new cycle of spending and budgeting.
+Starting a new cycle will move whatever is left from your tanks over to your savings. This is when you receive your income and start your new cycle of spending and budgeting.
 
 ## Notes
 Dark Mode is on by default.
