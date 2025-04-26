@@ -1,8 +1,5 @@
-# BankTank
-
-
-Expense Tracker App
-Setup (Important)
+# Bank Tank
+## Setup (Important)
 When you first open the app, you must do these things before you can really use it:
 
 Create an Account
@@ -31,8 +28,8 @@ Each tank will have an allocation limit you choose, but the total of all tanks c
 
 After this, the app is ready to track your expenses and savings.
 
-Screens and What You Can Do
-Home / Accounts Screen
+## Screens and What You Can Do
+### Home / Accounts Screen
 Add accounts using the button at the bottom left.
 
 See account details by clicking on an account.
@@ -43,7 +40,7 @@ Add a transaction by pressing the Add button.
 
 View full transaction details by tapping on any transaction.
 
-Tanks Screen
+### Tanks Screen
 View all your tanks (budgets) and how full they are.
 
 Press Manage to:
@@ -66,19 +63,19 @@ Tank bars show how much you've used compared to your allocation.
 
 The outline of the bar shows your total allocation, and the filled color shows how much is left.
 
-Savings Screen
+### Savings Screen
 Shows your special Savings tank at the top (this is auto-created).
 
 Below that, you can add Savings Goals (like saving for a trip).
 
 Track how much progress you've made toward each goal.
 
-Other Screen
-Right now, it just says "Import" (no features yet — planned for future).
+### Other Screen
+Currently it has some settings features such as starting a new financial cycle and inverting the tank fill view.
 
-Notes
+Starting a new cycle will move whatever is left from you tanks over to your savings. This is when you receive your income and start your new cycle of spending and budgeting.
+
+## Notes
 Dark Mode is on by default.
 
 All your data is saved on your device using SQLite (no internet needed).
-
-Savings Tank is a special tank — it does not count toward your Max Allocation.
