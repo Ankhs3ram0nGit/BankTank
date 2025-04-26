@@ -30,7 +30,7 @@ After this, the app is ready to track your expenses and savings.
 
 ## Screens and What You Can Do
 ### Home / Accounts Screen
-Add accounts using the button at the bottom left.
+Add accounts using the button at the bottom right.
 
 See account details by clicking on an account.
 
