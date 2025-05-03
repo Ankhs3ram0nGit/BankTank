@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.example.expensetracker.R
+import com.example.expensetracker.UI_Tank
 import com.example.expensetracker.databinding.ListItemTankBinding
 
 class TanksAdapter(
@@ -51,10 +52,6 @@ class TanksAdapter(
             // Apply resolved color
             binding.tankName.setTextColor(resolvedColor)
             binding.tankAllocation.setTextColor(resolvedColor)
-
-            // (Any other UI you have—e.g. a colored side bar—would also use resolvedColor)
-            // For example:
-            // binding.tankColorBar.setBackgroundColor(resolvedColor)
 
             binding.tankAllocation.text = "${uiTank.allocation} allocated"
             binding.editButton.setOnClickListener { onEditClick(uiTank) }

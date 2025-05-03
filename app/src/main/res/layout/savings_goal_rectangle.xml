@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView
-    android:id="@+id/transactionCard"
+    android:id="@+id/SavingsCard"
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -10,47 +10,36 @@
     android:layout_marginBottom="12dp"
     app:cardCornerRadius="12dp"
     app:cardElevation="4dp"
-    app:strokeColor="@android:color/darker_gray"
+    app:strokeColor="@android:color/white"
     app:strokeWidth="1dp"
     app:cardUseCompatPadding="true">
 
 
 
     <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/SavingsCardBackground"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp"
+        android:padding="30dp"
         android:background="@color/account_gray">
 
-        <TextView
-            android:id="@+id/transactionDate"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Apr 19, 2025"
-            android:textSize="14sp"
-            android:textColor="@android:color/white"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintVertical_bias="0.5" />
 
         <TextView
             android:id="@+id/transactionDescription"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="Transaction Description"
-            android:textSize="16sp"
+            android:textSize="20sp"
             android:textColor="@android:color/white"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/transactionDate"
             android:layout_marginEnd="8dp"/>
 
         <TextView
             android:id="@+id/transactionAmount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="$0.00"
+            android:text="1000/5000"
             android:textSize="18sp"
             android:textColor="@android:color/white"
             app:layout_constraintTop_toBottomOf="@id/transactionDescription"

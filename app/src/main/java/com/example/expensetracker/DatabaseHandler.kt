@@ -6,8 +6,7 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.util.Log
 import android.widget.Toast
-import com.example.expensetracker.ui.dashboard.UI_Tank
-import com.example.expensetracker.ui.dashboard.DB_Tank
+
 
 
 // Constants for database columns
@@ -45,9 +44,20 @@ val COL_TRANSACTION_TAG = "Transaction_Tag"
 val COL_TRANSACTION_BML_REFERENCE = "BML_Reference"
 val COL_TRANSACTION_BML_DATE = "BML_Date"
 val COL_TRANSACTION_TYPE = "Transaction_Type"
+val COL_TRANSACTION_CYCLE = "Transaction_Cycle"
+
+val TABLE_SAVINGS = "Savings"
+val COL_SAVINGS_ID = "Savings_ID"
+val COL_TITLE = "Title"
+val COL_GOAL = "Goal_Amount"
+val COL_FUNDS = "Funds"
+
+val TABLE_CURRENT_CYCLE = "CurrentCycle"
+val COL_CURRENT_CYCLE = "Current_Cycle"
 
 
-
+val TABLE_SALARY = "Table_Salary"
+val COL_SALARY = "Salary"
 class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, 1) {
 
     // Create the database table
@@ -106,6 +116,22 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
 
         db?.execSQL(createMaxAllocationTable)
 
+        val createCurrentCycleTable = """
+            CREATE TABLE IF NOT EXISTS $TABLE_CURRENT_CYCLE (
+            $COL_CURRENT_CYCLE INTEGER DEFAULT 1
+    );
+""".trimIndent()
+
+        db?.execSQL(createCurrentCycleTable)
+
+        val createSalaryTable = """
+            CREATE TABLE IF NOT EXISTS $TABLE_SALARY (
+            $COL_SALARY DOUBLE
+    );
+""".trimIndent()
+
+        db?.execSQL(createSalaryTable)
+
         val createTransactionsTable = """
         CREATE TABLE IF NOT EXISTS $TABLE_TRANSACTIONS (
             $COL_TRANSACTION_ID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -118,13 +144,80 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
             $COL_TRANSACTION_BML_DATE TEXT,
             $COL_TRANSACTION_TYPE TEXT,
             $COL_TRANSACTION_TAG TEXT,
+            $COL_TRANSACTION_CYCLE INTEGER,
             FOREIGN KEY($COL_ACCOUNT_ID) REFERENCES $TABLE_NAME($COL_NAME),
             FOREIGN KEY($COL_TANK_ID) REFERENCES Tanks($COL_TANK_NAME)
         );
     """.trimIndent()
 
         db?.execSQL(createTransactionsTable)
+
+        val createSavingsTable = """
+        CREATE TABLE IF NOT EXISTS $TABLE_SAVINGS (
+            $COL_SAVINGS_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            $COL_TITLE TEXT NOT NULL,
+            $COL_GOAL DOUBLE NOT NULL,
+            $COL_FUNDS DOUBLE NOT NULL
+        );
+        """.trimIndent()
+
+        db?.execSQL(createSavingsTable)
     }
+
+    fun incrementCurrentCycle() {
+        val db = this.writableDatabase
+        db.beginTransaction()
+        try {
+            // 1. Get the sum of current_allocation of all tanks except Savings
+            val cursor = db.rawQuery(
+                """
+            SELECT SUM($COL_CURRENT_ALLOCATION) 
+            FROM Tanks 
+            WHERE LOWER($COL_TANK_NAME) != 'savings'
+            """.trimIndent(), null
+            )
+            var totalCurrentAllocation = 0.0
+            if (cursor.moveToFirst()) {
+                totalCurrentAllocation = cursor.getDouble(0)
+            }
+            cursor.close()
+
+            // 2. Add the sum to Savings tanks current_allocation and allocation
+            db.execSQL(
+                """
+            UPDATE Tanks
+            SET 
+                $COL_CURRENT_ALLOCATION = $COL_CURRENT_ALLOCATION + $totalCurrentAllocation,
+                $COL_TANK_ALLOCATION = $COL_TANK_ALLOCATION + $totalCurrentAllocation
+            WHERE LOWER($COL_TANK_NAME) = 'savings'
+            """.trimIndent()
+            )
+
+            // 3. Increment current cycle
+            db.execSQL(
+                """
+            UPDATE $TABLE_CURRENT_CYCLE 
+            SET $COL_CURRENT_CYCLE = $COL_CURRENT_CYCLE + 1
+            """.trimIndent()
+            )
+
+            // 4. Reset each tanks current_allocation to its allocation value
+            db.execSQL(
+                """
+            UPDATE Tanks 
+            SET $COL_CURRENT_ALLOCATION = $COL_TANK_ALLOCATION
+            """.trimIndent()
+            )
+
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+            db.close()
+        }
+    }
+
+
+
     fun getAccountByNumber(accountNumber: String): Account? {
         val db = this.readableDatabase
         val query = "SELECT * FROM $TABLE_NAME WHERE $COL_AccountNumber = ?"
@@ -144,7 +237,7 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
                 return null
             }
 
-            // Now retrieve the data with appropriate null checks
+            // Retrieve the data with appropriate null checks
             val name = cursor.getString(nameIndex)
             val balance = cursor.getDouble(balanceIndex)
             val color = cursor.getString(colorIndex)
@@ -171,7 +264,7 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
         cursor.close()
 
         if (count == 0) {
-            // table empty → insert
+            // table empty = insert
             db.insert("MaxAllocation", null, cv)
         } else {
             // update the sole row
@@ -184,6 +277,7 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
         }
         db.close()
     }
+
 
 
     fun getMaxAllocation(): Double {
@@ -203,7 +297,12 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
         val db = readableDatabase
         var totalAllocated = 0.0
 
-        val cursor = db.rawQuery("SELECT SUM($COL_TANK_ALLOCATION) FROM Tanks", null)
+        // Exclude the Savings tank from the SUM
+        val cursor = db.rawQuery(
+            "SELECT SUM($COL_TANK_ALLOCATION) FROM Tanks WHERE LOWER($COL_TANK_NAME) != 'savings'",
+            null
+        )
+
         if (cursor != null && cursor.moveToFirst()) {
             if (!cursor.isNull(0)) {
                 totalAllocated = cursor.getDouble(0)
@@ -216,10 +315,6 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
 
         return maxAllocation - totalAllocated
     }
-
-
-
-
 
 
 
@@ -245,6 +340,72 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
         cursor.close()
         db.close()
         return accountList
+    }
+
+
+    fun insertNewSavingsGoal(goal: savingsGoal) {
+        val db = this.writableDatabase
+        val contentValues = ContentValues()
+
+        contentValues.put(COL_TITLE, goal.title)
+        contentValues.put(COL_GOAL, goal.goal)
+        contentValues.put(COL_FUNDS, goal.funds)
+
+        val result = db.insert(TABLE_SAVINGS, null, contentValues)
+
+        if (result == -1L) {
+            // If insertion failed
+            Toast.makeText(context, "Failed to add new goal", Toast.LENGTH_SHORT).show()
+            Log.e("Database", "Failed to add new goal")
+        } else {
+            // If insertion succeeded
+            Toast.makeText(context, "New Goal added successfully", Toast.LENGTH_SHORT).show()
+            Log.d("Database", "New Goal added: Goal=${goal.title}, Amount=${goal.goal}")
+        }
+
+        db.close()
+
+    }
+
+    fun getAllSavingsGoals(): List<savingsGoal> {
+        val savingsList = mutableListOf<savingsGoal>()
+        val db = this.readableDatabase
+        val query = "SELECT * FROM $TABLE_SAVINGS"
+        val cursor = db.rawQuery(query, null)
+
+        if (cursor.moveToFirst()) {
+            do {
+                val id = cursor.getInt(cursor.getColumnIndexOrThrow("Savings_ID"))
+                val title = cursor.getString(cursor.getColumnIndexOrThrow("Title"))
+                val goal = cursor.getDouble(cursor.getColumnIndexOrThrow("Goal_Amount"))
+                val funds = cursor.getDouble(cursor.getColumnIndexOrThrow("Funds"))
+
+                val newgoal = savingsGoal(id, title, goal, funds)
+                savingsList.add(newgoal)
+            } while (cursor.moveToNext())
+        }
+
+        cursor.close()
+        db.close()
+        return savingsList
+    }
+
+    fun ensureSavingsTankExists() {
+        val db = this.writableDatabase
+        val cursor = db.rawQuery("SELECT * FROM Tanks WHERE $COL_TANK_NAME = ?", arrayOf("Savings"))
+
+        if (!cursor.moveToFirst()) {
+            val contentValues = ContentValues()
+            contentValues.put(COL_TANK_NAME, "Savings")
+            contentValues.put(COL_TANK_COLOR, "account_grey")
+            contentValues.put(COL_TANK_ALLOCATION, 0)
+            contentValues.put(COL_CURRENT_ALLOCATION, 0.0)
+
+            db.insert("Tanks", null, contentValues)
+        }
+
+        cursor.close()
+        db.close()
     }
 
 
@@ -275,6 +436,27 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
     }
 
 
+    fun getSavingsGoalByTitle(title: String): savingsGoal? {
+        val db = this.readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT * FROM $TABLE_SAVINGS WHERE title = ?",
+            arrayOf(title)
+        )
+
+        var goal: savingsGoal? = null
+
+        if (cursor.moveToFirst()) {
+            val id = cursor.getInt(cursor.getColumnIndexOrThrow("id"))
+            val goalAmount = cursor.getDouble(cursor.getColumnIndexOrThrow("goal"))
+            val funds = cursor.getDouble(cursor.getColumnIndexOrThrow("funds"))
+
+            goal = savingsGoal(id, title, goalAmount, funds)
+        }
+
+        cursor.close()
+        db.close()
+        return goal
+    }
 
 
 
@@ -313,9 +495,14 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
         val db = this.writableDatabase
         val contentValues = ContentValues()
 
-        // Update current allocation only (can go negative or exceed max)
         val newCurrentAllocation = dbTank.currentAllocation + transactionAmount
         contentValues.put(COL_CURRENT_ALLOCATION, newCurrentAllocation)
+
+        // Special case: if this is the Savings tank, also update maxAllocation
+        if (dbTank.name.equals("Savings", ignoreCase = true)) {
+            val newMaxAllocation = dbTank.maxAllocation
+            contentValues.put(COL_TANK_ALLOCATION, newMaxAllocation)
+        }
 
         val result = db.update(
             "Tanks",
@@ -328,12 +515,17 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
             Log.e("Database", "Failed to update tank allocation for ${dbTank.name}")
             Toast.makeText(context, "Failed to update tank allocation", Toast.LENGTH_SHORT).show()
         } else {
-            Log.d("Database", "Tank allocation updated: ${dbTank.name} -> $newCurrentAllocation (max stays ${dbTank.maxAllocation})")
+            Log.d("Database", "Tank allocation updated: ${dbTank.name} -> $newCurrentAllocation (max: ${dbTank.maxAllocation})")
         }
 
         db.close()
     }
 
+
+    fun deleteTransaction(transactionId: Long): Boolean {
+        val db = this.writableDatabase
+        return db.delete("Transactions", "transactionId=?", arrayOf(transactionId.toString())) > 0
+    }
 
 
 
@@ -407,7 +599,7 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
             Log.d("Database", "Account added: Name=${account.name}, Balance=${account.balance}, Color=${account.color}, AccountNUmber=${account.accountNumber}, Currency=${account.currency}")
         }
 
-        db.close() // Ensure the database is closed after the operation
+        db.close()
     }
 
     // Insert a new tank into the Tanks table
@@ -430,7 +622,7 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
             Log.d("Database", "Tank added: Name=${dbTank.name}, Max_Allocation=${dbTank.maxAllocation}, Color=${dbTank.color}")
         }
 
-        db.close() // Close the database
+        db.close()
     }
 
 
@@ -458,6 +650,82 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
         db.close()
         return uiTankList
     }
+
+    fun processSavingsTransaction(
+        transactionType: String,
+        selectedAccountName: String,
+        amount: Double
+    ): Boolean {
+        val db = writableDatabase
+
+        // Get current Savings tank values
+        val tankCursor = db.rawQuery("SELECT * FROM Tanks WHERE $COL_TANK_NAME = ?", arrayOf("Savings"))
+        if (!tankCursor.moveToFirst()) {
+            tankCursor.close()
+            return false
+        }
+
+        val tankId = tankCursor.getInt(tankCursor.getColumnIndexOrThrow("Tank_ID"))
+        var tankMaxAlloc = tankCursor.getDouble(tankCursor.getColumnIndexOrThrow("Tank_Allocation"))
+        var tankCurrAlloc = tankCursor.getDouble(tankCursor.getColumnIndexOrThrow("Current_Allocation"))
+        tankCursor.close()
+
+        // Get selected account
+        val accountCursor = db.rawQuery("SELECT * FROM $TABLE_NAME WHERE $COL_NAME = ?", arrayOf(selectedAccountName))
+        if (!accountCursor.moveToFirst()) {
+            accountCursor.close()
+            return false
+        }
+
+        val accountId = accountCursor.getInt(accountCursor.getColumnIndexOrThrow("Account_ID"))
+        var accountBalance = accountCursor.getDouble(accountCursor.getColumnIndexOrThrow("Balance"))
+        accountCursor.close()
+
+        if (transactionType == "withdraw") {
+            if (tankMaxAlloc >= amount) {
+                // Update savings tank
+                val tankValues = ContentValues().apply {
+                    put("Tank_Allocation", tankMaxAlloc - amount)
+                    put("Current_Allocation", tankCurrAlloc - amount)
+                }
+                db.update("Tanks", tankValues, "Tank_ID = ?", arrayOf(tankId.toString()))
+
+                // Update account balance
+                val accountValues = ContentValues().apply {
+                    put("Balance", accountBalance + amount)
+                }
+                db.update("Accounts", accountValues, "Account_ID = ?", arrayOf(accountId.toString()))
+
+                return true
+            } else {
+                return false // Not enough in savings
+            }
+        } else if (transactionType == "add") {
+            if (accountBalance >= amount) {
+                // Update savings tank
+                val tankValues = ContentValues().apply {
+                    put("Tank_Allocation", tankMaxAlloc + amount)
+                    put("Current_Allocation", tankCurrAlloc + amount)
+                }
+                db.update("Tanks", tankValues, "Tank_ID = ?", arrayOf(tankId.toString()))
+
+                // Update account balance
+                val accountValues = ContentValues().apply {
+                    put("Balance", accountBalance - amount)
+                }
+                db.update("Accounts", accountValues, "Account_ID = ?", arrayOf(accountId.toString()))
+
+                return true
+            } else {
+                return false // Not enough in account
+            }
+        }
+
+        return false
+    }
+
+
+
     fun getAllTanks(): List<DB_Tank> {
         val dbTankList = mutableListOf<DB_Tank>()
         val db = this.readableDatabase
@@ -516,7 +784,7 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
 
 
 
-
+    // For Systems Devs
     fun insertIncome(amount: Double, description: String) {
         val db = this.writableDatabase
         val contentValues = ContentValues().apply {
@@ -537,11 +805,14 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
         db.close()
     }
 
+
+
+
     fun getAllTransactionsForAccount(accountId: String): List<TransactionData> {
         val transactionList = mutableListOf<TransactionData>()
         val db = readableDatabase
 
-        // filter by Account_ID, not Account_Name
+        // filter by Account_ID
         val cursor = db.rawQuery(
             "SELECT * FROM $TABLE_TRANSACTIONS WHERE $COL_ACCOUNT_ID = ?",
             arrayOf(accountId)
@@ -549,7 +820,7 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
 
         if (cursor.moveToFirst()) {
             do {
-                // read all columns—now including tag, bml, type…
+                // read all columns now including tag, bml, type etc
                 val id        = cursor.getInt(cursor.getColumnIndexOrThrow(COL_TRANSACTION_ID))
                 val accId     = cursor.getString(cursor.getColumnIndexOrThrow(COL_ACCOUNT_ID))
                 val tankId    = cursor.getString(cursor.getColumnIndexOrThrow(COL_TANK_ID))
@@ -648,10 +919,5 @@ class DatabaseHandler(private val context: Context) : SQLiteOpenHelper(context, 
         // don't close the DB here! let the caller finish its work, then close.
         return rowId
     }
-
-
-
-
-
 
 }

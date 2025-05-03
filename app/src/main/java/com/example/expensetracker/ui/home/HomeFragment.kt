@@ -73,7 +73,7 @@ class HomeFragment : Fragment() {
     private fun showAddAccountDialog() {
         val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_account, null)
         val editTextAccountName = dialogView.findViewById<EditText>(R.id.AccountName)
-        val buttonCancel = dialogView.findViewById<Button>(R.id.buttonDeleteTank)
+        val buttonCancel = dialogView.findViewById<Button>(R.id.buttonCancel)
         val buttonConfirm = dialogView.findViewById<Button>(R.id.buttonConfirm)
         val editTextAccountBalance = dialogView.findViewById<EditText>(R.id.AccountBalance)
         val editSpinnerAccountColor = dialogView.findViewById<Spinner>(R.id.AccountColor)
@@ -105,7 +105,7 @@ class HomeFragment : Fragment() {
                 try {
                     val accountBalance = accountBalanceStr.toDouble()
                     addAccount(accountName, accountBalance, accountColor, accountNumber, currency)
-                    alertDialog.dismiss()  // Close the dialog if the account was added successfully
+                    alertDialog.dismiss()
                 } catch (e: NumberFormatException) {
                     // Handle invalid number format for account balance
                     // Show error message or log the error
@@ -152,7 +152,7 @@ class HomeFragment : Fragment() {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
-        layoutParams.setMargins(0, 0, 0, 32)
+        layoutParams.setMargins(15, 0, 15, 40)
         rectangleLayout.layoutParams = layoutParams
 
         rectangleLayout.tag = accountName
@@ -196,7 +196,7 @@ class HomeFragment : Fragment() {
         currencyTextView.text = currency
 
 
-// Set OnClickListener for rectangleLayout
+        // Set OnClickListener for rectangleLayout
         rectangleLayout.setOnClickListener {
             val bundle = Bundle().apply {
                 putString("accountName", accountName)
@@ -298,7 +298,7 @@ class HomeFragment : Fragment() {
             )
 
             alertDialog.dismiss()
-            loadAccounts()  // Reload accounts to reflect changes
+            loadAccounts()
         }
 
 

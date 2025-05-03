@@ -7,7 +7,6 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -27,6 +26,7 @@ import com.example.expensetracker.Account
 import com.example.expensetracker.DatabaseHandler
 import com.example.expensetracker.R
 import com.example.expensetracker.TransactionData
+import com.example.expensetracker.UI_Tank
 import com.example.expensetracker.ui.home.TransactionAdapter
 import com.google.android.material.card.MaterialCardView
 import java.text.SimpleDateFormat
@@ -82,7 +82,7 @@ class TankDetailsFragment : Fragment() {
             resourceName, "color", requireContext().packageName
         )
 
-        // 5) If found, get the actual int color; else fallback gray
+        // 5) If found, get the actual int color, else fallback gray
         val tankColorInt = if (colorResId != 0)
             ContextCompat.getColor(requireContext(), colorResId)
         else
@@ -116,7 +116,7 @@ class TankDetailsFragment : Fragment() {
 
         addTransactionButton.setOnClickListener {
             showAddTransactionDialogForTank(requireContext(), name) { transaction ->
-                val updatedTransactions = dbHandler.getAllTransactionsForAccount(name)
+                val updatedTransactions = dbHandler.getAllTransactionsForTank(name)
                 recyclerView.adapter = TransactionAdapter(updatedTransactions) { updatedTransaction ->
                     showTransactionDetailsDialog(updatedTransaction)
                 }
@@ -143,9 +143,10 @@ class TankDetailsFragment : Fragment() {
 
         val databaseHandler = DatabaseHandler(context)
 
-        // 2) Populate TANK spinner and auto‐select this fragment's tank
-        val tankList   = databaseHandler.getAllTanksUI()
-        val tankNames  = tankList.map { it.name }
+        // 2) Populate TANK spinner and auto‐select this fragments tank
+        val allTanks = databaseHandler.getAllTanksUI()
+        val tankList = allTanks.filterNot { it.name.equals("Savings", ignoreCase = true) }
+        val tankNames = tankList.map { it.name }
         val tankAdapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, tankNames)
         tankAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         tankSpinner.adapter = tankAdapter
@@ -287,12 +288,14 @@ class TankDetailsFragment : Fragment() {
                 return
             }
 
-            // 5) Fetch the matching DB_Tank so we can call updateTank(...) on it
+            // 5) Fetch the matching DB_Tank so we can call updateTank on it
             val dbTank = db.getAllTanks().firstOrNull { it.name == uiTank.name }
                 ?: run {
                     Toast.makeText(context, "Database tank missing", Toast.LENGTH_SHORT).show()
                     return
                 }
+
+            val isSavingsTank = dbTank.name.equals("Savings", ignoreCase = true)
             val oldAllocation = dbTank.currentAllocation
 
             // 6) Build the TransactionData
@@ -317,10 +320,27 @@ class TankDetailsFragment : Fragment() {
             }
 
             // 8) Only after success, update balances
-            uiAccount.balance       += rawAmount
-
-            db.updateTankAfterTransaction(dbTank, rawAmount)
+            uiAccount.balance += rawAmount
             db.updateAccount(uiAccount)
+
+            // Check if it's the Savings tank
+            if (isSavingsTank) {
+                if (transactionType == "income") {
+                    dbTank.maxAllocation += rawAmount
+                    dbTank.currentAllocation += rawAmount
+                    db.updateTankAfterTransaction(dbTank, rawAmount)
+                } else if (transactionType == "expense") {
+                    if (dbTank.maxAllocation + rawAmount < 0) {
+                        Toast.makeText(context, "Not enough funds in Savings", Toast.LENGTH_SHORT).show()
+                        db.deleteTransaction(newRow) // undo insert
+                        return
+                    }
+                    dbTank.maxAllocation += rawAmount // rawAmount is negative
+                    db.updateTankAfterTransaction(dbTank, rawAmount)
+                }
+            } else {
+                db.updateTankAfterTransaction(dbTank, rawAmount)
+            }
 
             // 9) Tell the UI
             onTransactionAdded(tx)
@@ -387,15 +407,15 @@ class TankDetailsFragment : Fragment() {
         val fillRatio = if (invertFill) 1f - rawRatio else rawRatio
 
         val container = view.findViewById<FrameLayout>(R.id.tankFillContainer)
-        val fillView  = view.findViewById<View>(R.id.tankFill)
+        val fillView = view.findViewById<View>(R.id.tankFill)
 
         container.post {
             val totalWidth = container.width
-            val fillWidth  = (totalWidth * fillRatio).toInt()
+            val fillWidth = (totalWidth * fillRatio).toInt()
 
             // 1) Set container background (light gray, rounded corners)
             val containerDrawable = GradientDrawable().apply {
-                shape        = GradientDrawable.RECTANGLE
+                shape = GradientDrawable.RECTANGLE
                 setColor(Color.parseColor("#D3D3D3")) // light gray
                 cornerRadius = 24f
             }
@@ -407,11 +427,12 @@ class TankDetailsFragment : Fragment() {
 
             // 3) Set fill background (tank color, rounded corners)
             val fillDrawable = GradientDrawable().apply {
-                shape        = GradientDrawable.RECTANGLE
-                setColor(Color.parseColor(colorHex))
+                shape = GradientDrawable.RECTANGLE
+                setColor(Color.parseColor(colorHex)) // <- THIS was missing!
                 cornerRadius = 24f
             }
             fillView.background = fillDrawable
         }
     }
+
 }

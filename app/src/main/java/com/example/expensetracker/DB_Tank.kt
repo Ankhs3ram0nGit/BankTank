@@ -1,4 +1,4 @@
-package com.example.expensetracker.ui.dashboard
+package com.example.expensetracker
 
 data class DB_Tank(
     val id: Int = 0,  // Primary key for DB use

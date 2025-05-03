@@ -25,7 +25,7 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         app:layout_constraintTop_toBottomOf="@id/text_home"
-        app:layout_constraintBottom_toTopOf="@id/plusButton"
+        app:layout_constraintBottom_toTopOf="@+id/space"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent">
 
@@ -36,6 +36,16 @@
             android:orientation="vertical" />
     </ScrollView>
 
+    <!-- Invisible placeholder to preserve constraints -->
+    <Space
+        android:id="@+id/space"
+        android:layout_width="1dp"
+        android:layout_height="66dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <!--
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/plusButton"
         android:layout_width="wrap_content"
@@ -46,5 +56,6 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:backgroundTint="@color/colorPrimary" />
+    -->
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -15,9 +15,8 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.example.expensetracker.DatabaseHandler
 import com.example.expensetracker.R
+import com.example.expensetracker.UI_Tank
 import com.example.expensetracker.databinding.FragmentTanksBinding
-
-
 class TanksFragment : Fragment() {
     private var _binding: FragmentTanksBinding? = null
     private val binding get() = _binding!!
@@ -36,35 +35,46 @@ class TanksFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         databaseHandler = DatabaseHandler(requireContext())
 
-        // Manage button navigation
         binding.manageButton.setOnClickListener {
             findNavController().navigate(R.id.action_tanks_to_manage)
         }
 
-        // Load data from DB
-        val tanks = databaseHandler.getAllTanksUI()
-        val maxAllocation = databaseHandler.getMaxAllocation().coerceAtLeast(1.0)
+        val tanks       = databaseHandler.getAllTanksUI()
+        val maxAlloc    = databaseHandler.getMaxAllocation().coerceAtLeast(1.0)
 
-        // Populate the UI with your vertical tubes
-        populateTanksView(tanks, maxAllocation)
+        binding.tanksScrollView.post {
+            // total height available for the tubes
+            val totalHeightPx = binding.tanksScrollView.height
+
+            val reservedDp = 70 + 16 + 16 // baseline bottom + top/bottom padding
+            val reservedPx = (reservedDp * resources.displayMetrics.density).toInt()
+
+            val maxCanvasHeight = totalHeightPx - reservedPx
+
+            populateTanksView(tanks, maxAlloc, maxCanvasHeight)
+        }
+        refreshTanks()
     }
 
-    private fun populateTanksView(tanksList: List<UI_Tank>, maxAllocation: Double) {
+    private fun populateTanksView(
+        tanksList: List<UI_Tank>,
+        maxAllocation: Double,
+        maxCanvasHeight: Int
+    ) {
         val container = binding.tanksFragment
         container.removeAllViews()
 
         val d = resources.displayMetrics.density
         fun Int.dp() = (this * d).toInt()
 
-        // increased canvas height to create more space above the tube
-        val maxCanvasHeight = 500.dp()  // Increased height for more space above the tube
-        val tubeWidth = 100.dp()
+        val tubeWidth  = 100.dp()
         val tubeMargin = 32.dp()
 
-        // find the largest current allocation
-        val maxAssigned = tanksList.maxOfOrNull { it.allocation }?.coerceAtLeast(1.0) ?: 1.0
+        // Filter out "Savings"
+        val filtered = tanksList.filter { it.name.lowercase() != "savings" }
+        val maxAssigned = filtered.maxOfOrNull { it.allocation }?.coerceAtLeast(1.0) ?: 1.0
 
-        val colorNameMap = mapOf(
+        val colorMap = mapOf(
             "Green" to R.color.account_green,
             "Red" to R.color.account_red,
             "Yellow" to R.color.account_yellow,
@@ -76,130 +86,102 @@ class TanksFragment : Fragment() {
             "Royal Blue" to R.color.account_royal_blue
         )
 
-        for (tank in tanksList) {
-            // now scale each tank relative to the largest one
-            val ratio = (tank.allocation / maxAssigned).coerceIn(0.0, 1.0)
+        for (tank in filtered) {
+            val ratio     = (tank.allocation / maxAssigned).coerceIn(0.0, 1.0)
             val tubeHeight = (maxCanvasHeight * ratio).toInt()
 
-            // fill color
             val fillColor = ContextCompat.getColor(
                 requireContext(),
-                colorNameMap[tank.color] ?: R.color.account_gray
+                colorMap[tank.color] ?: R.color.account_gray
             )
 
-            // Create a container for the tube and its text (this will stack them vertically)
             val tankLayout = LinearLayout(requireContext()).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
                 layoutParams = LinearLayout.LayoutParams(
                     tubeWidth, LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply {
-                    setMargins(tubeMargin, 16.dp(), tubeMargin, 16.dp())  // Adjusted space between tube and text
+                    setMargins(tubeMargin, 16.dp(), tubeMargin, 16.dp())
                 }
             }
 
-            // container for this tube (tube is placed at the top)
             val tubeCanvas = FrameLayout(requireContext()).apply {
-                layoutParams = LinearLayout.LayoutParams(tubeWidth, maxCanvasHeight).apply {
-                    gravity = Gravity.BOTTOM
-                }
+                layoutParams = LinearLayout
+                    .LayoutParams(tubeWidth, maxCanvasHeight)
+                    .apply { gravity = Gravity.BOTTOM }
             }
 
-            val sharedPrefs = requireContext().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-            val invertFill = sharedPrefs.getBoolean("invert_fill", false)
+            val invert = requireContext()
+                .getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+                .getBoolean("invert_fill", false)
 
+            val rawRatio  = (tank.currentAllocation / tank.allocation).coerceIn(0.0, 1.0)
+            val fillRatio = if (invert) 1.0 - rawRatio else rawRatio
+            val fillHeight = (tubeHeight * fillRatio).toInt()
 
-            // colored fill with rounded corners
             val fillDrawable = GradientDrawable().apply {
                 cornerRadius = 12.dp().toFloat()
                 setColor(fillColor)
             }
 
-
-            val rawRatio = (tank.currentAllocation / tank.allocation).coerceIn(0.0, 1.0)
-            val fillRatio = if (invertFill) 1.0 - rawRatio else rawRatio
-            val fillHeight = (tubeHeight * fillRatio).toInt()
-
-            val fillView = View(requireContext()).apply {
-                layoutParams = FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    fillHeight,
-                    Gravity.BOTTOM
-                )
+            tubeCanvas.addView(View(requireContext()).apply {
+                layoutParams = FrameLayout
+                    .LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, fillHeight, Gravity.BOTTOM)
                 background = fillDrawable
-            }
+            })
 
-            tubeCanvas.addView(fillView)
-
-            // outline overlay, same height
-            val outlineView = View(requireContext()).apply {
-                layoutParams = FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    tubeHeight,
-                    Gravity.BOTTOM
-                )
+            tubeCanvas.addView(View(requireContext()).apply {
+                layoutParams = FrameLayout
+                    .LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, tubeHeight, Gravity.BOTTOM)
                 setBackgroundResource(R.drawable.tank_outline)
-            }
-            tubeCanvas.addView(outlineView)
+            })
 
-            // Add the tube to the tank layout (tube is the first element)
             tankLayout.addView(tubeCanvas)
 
-            // Create text views for the tank name and allocation values
-            val nameView = TextView(requireContext()).apply {
-                text = tank.name
-                setTextColor(ContextCompat.getColor(requireContext(), android.R.color.white)) // Changed to white
+            tankLayout.addView(TextView(requireContext()).apply {
+                text    = tank.name
+                setTextColor(ContextCompat.getColor(requireContext(), android.R.color.white))
                 setTypeface(null, android.graphics.Typeface.BOLD)
                 gravity = Gravity.CENTER
-            }
+            })
 
-            val allocationView = TextView(requireContext()).apply {
-                text = "${tank.currentAllocation}/${tank.allocation}"
+            tankLayout.addView(TextView(requireContext()).apply {
+                text    = "${tank.currentAllocation}/${tank.allocation}"
                 setTextColor(ContextCompat.getColor(requireContext(), android.R.color.darker_gray))
                 gravity = Gravity.CENTER
-            }
-
-            // Add name and allocation text views to the tank layout (text is below the tube)
-            tankLayout.addView(nameView)
-            tankLayout.addView(allocationView)
+            })
 
             tankLayout.setOnClickListener {
-                val bundle = Bundle().apply {
-                    putString("name", tank.name)
-                    putString("color", tank.color)
-                    putDouble("allocation", tank.allocation)
-                    putDouble("currentAllocation", tank.currentAllocation)
-                }
-
-                findNavController().navigate(R.id.action_tanks_to_tankDetails, bundle)
-
+                findNavController().navigate(
+                    R.id.action_tanks_to_tankDetails,
+                    Bundle().apply {
+                        putString("name", tank.name)
+                        putString("color", tank.color)
+                        putDouble("allocation", tank.allocation)
+                        putDouble("currentAllocation", tank.currentAllocation)
+                    }
+                )
             }
 
-            // Now add the entire tank layout (tube + text) to the container
             container.addView(tankLayout)
         }
     }
+    private fun refreshTanks() {
+        val tanks = databaseHandler.getAllTanksUI()
+        val maxAlloc = databaseHandler.getMaxAllocation().coerceAtLeast(1.0)
 
+        binding.tanksScrollView.post {
+            val totalHeightPx = binding.tanksScrollView.height
+            val reservedDp = 70 + 16 + 16
+            val reservedPx = (reservedDp * resources.displayMetrics.density).toInt()
+            val maxCanvasHeight = totalHeightPx - reservedPx
 
-
-
-
-
-
-
-
-
-
+            populateTanksView(tanks, maxAlloc, maxCanvasHeight)
+        }
+    }
 
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
     }
 }
-
-
-
-
-
-
-

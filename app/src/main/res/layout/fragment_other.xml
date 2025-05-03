@@ -11,7 +11,7 @@
         android:id="@+id/text_tank_settings_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Tank Settings"
+        android:text="Settings"
         android:textSize="22sp"
         android:textStyle="bold"
         android:layout_marginTop="24dp"
@@ -19,6 +19,37 @@
         android:textColor="@color/white"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
+
+    <!-- Salary Input -->
+    <EditText
+        android:id="@+id/SalaryInput"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:hint="Enter Monthly Salary"
+        android:inputType="numberDecimal"
+        android:layout_marginTop="16dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="8dp"
+        app:layout_constraintTop_toBottomOf="@id/text_tank_settings_title"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/saveButton"
+        />
+
+    <!-- Save Button -->
+    <Button
+        android:id="@+id/saveButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Save"
+        android:backgroundTint="@color/account_gray"
+        android:textColor="@android:color/white"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        app:layout_constraintTop_toTopOf="@id/SalaryInput"
+        app:layout_constraintBottom_toBottomOf="@id/SalaryInput"
+        app:layout_constraintStart_toEndOf="@id/SalaryInput"
+        app:layout_constraintEnd_toEndOf="parent" />
+
 
     <!-- Label for Switch -->
     <TextView
@@ -30,7 +61,7 @@
         android:textColor="@color/white"
         android:layout_marginStart="16dp"
         android:layout_marginTop="32dp"
-        app:layout_constraintTop_toBottomOf="@id/text_tank_settings_title"
+        app:layout_constraintTop_toBottomOf="@id/SalaryInput"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintBottom_toBottomOf="@+id/switch_invert_fill"/>
 
@@ -43,5 +74,30 @@
         app:layout_constraintTop_toTopOf="@id/text_invert_fill_label"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBaseline_toBaselineOf="@+id/text_invert_fill_label" />
+
+    <!-- Start Cycle Label -->
+    <TextView
+        android:id="@+id/text_start_cycle_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Start new cycle"
+        android:textSize="18sp"
+        android:textColor="@color/white"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="32dp"
+        app:layout_constraintTop_toBottomOf="@id/text_invert_fill_label"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toBottomOf="@+id/button_start_cycle" />
+
+    <!-- Start Cycle Button -->
+    <Button
+        android:id="@+id/button_start_cycle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="CYCLE"
+        android:layout_marginEnd="16dp"
+        app:layout_constraintTop_toTopOf="@id/text_start_cycle_label"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBaseline_toBaselineOf="@+id/text_start_cycle_label" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

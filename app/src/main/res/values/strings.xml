@@ -4,6 +4,7 @@
     <string name="title_dashboard">Tanks</string>
     <string name="title_notifications">Savings</string>
     <string name="title_other">Settings</string>
+    <string name="accessibility_service_description">Detects receipts in BML banking app</string>
 
 
     <string-array name="currency_types">

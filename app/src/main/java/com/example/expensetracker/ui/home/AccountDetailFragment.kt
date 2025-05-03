@@ -7,7 +7,6 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -20,8 +19,7 @@ import com.example.expensetracker.Account
 import com.example.expensetracker.DatabaseHandler
 import com.example.expensetracker.R
 import com.example.expensetracker.TransactionData
-import com.example.expensetracker.ui.dashboard.DB_Tank
-import com.example.expensetracker.ui.dashboard.UI_Tank
+import com.example.expensetracker.UI_Tank
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -182,8 +180,9 @@ class AccountDetailFragment : Fragment() {
 
 
         // Populate Tank Spinner
-        val tankList = databaseHandler.getAllTanksUI()
-        val tankNames = tankList.map { it.name } // List of tank names for spinner
+        val allTanks = databaseHandler.getAllTanksUI()
+        val tankList = allTanks.filterNot { it.name.equals("Savings", ignoreCase = true) }
+        val tankNames = tankList.map { it.name }
         val tankAdapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, tankNames)
         tankAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         tankSpinner.adapter = tankAdapter
@@ -310,57 +309,76 @@ class AccountDetailFragment : Fragment() {
             // 3) Get current date & format tags
             val currentDate = SimpleDateFormat("dd/MM/yy", Locale.getDefault())
                 .format(Date())
-            val tagsList = tagsEditText.text
+            val formattedTags = tagsEditText.text
                 .toString()
                 .trim()
                 .split(" ")
-                .map { it.replace("_", " ") }
-            val formattedTags = tagsList.joinToString(",")
+                .joinToString(",") { it.replace("_", " ") }
 
-            // 4) Look up your UI objects
-            val uiTank    = tankList.firstOrNull { it.name == selectedTankName }
-            val uiAccount = accountList.firstOrNull{ it.name == selectedAccountName }
+            // 4) Look up the UI objects
+            val uiTank = tankList.firstOrNull { it.name == selectedTankName }
+            val uiAccount = accountList.firstOrNull { it.name == selectedAccountName }
             if (uiTank == null || uiAccount == null) {
                 Toast.makeText(context, "Tank or Account not found", Toast.LENGTH_SHORT).show()
                 return
             }
 
-            // 5) Fetch the matching DB_Tank so we can call updateTank(...) on it
+            // 5) Fetch the matching DB_Tank
             val dbTank = db.getAllTanks().firstOrNull { it.name == uiTank.name }
                 ?: run {
                     Toast.makeText(context, "Database tank missing", Toast.LENGTH_SHORT).show()
                     return
                 }
-            val oldAllocation = dbTank.currentAllocation
+
+            val isSavingsTank = dbTank.name.equals("Savings", ignoreCase = true)
 
             // 6) Build the TransactionData
             val tx = TransactionData(
-                transactionId  = 0,
-                accountId      = uiAccount.name,
-                tankId         = dbTank.name,
-                amount         = rawAmount,
-                date           = currentDate,
-                description    = descriptionEditText.text.toString().trim(),
-                tag            = formattedTags,
-                bmlReference   = bmlRefEditText.text.toString().trim(),
-                bmlDate        = bmlDateEditText.text.toString().trim(),
-                transactionType= transactionType
+                transactionId = 0,
+                accountId = uiAccount.name,
+                tankId = dbTank.name,
+                amount = rawAmount,
+                date = currentDate,
+                description = descriptionEditText.text.toString().trim(),
+                tag = formattedTags,
+                bmlReference = bmlRefEditText.text.toString().trim(),
+                bmlDate = bmlDateEditText.text.toString().trim(),
+                transactionType = transactionType
             )
 
-            // 7) Try the DB insert first
+            // 7) Insert into DB
             val newRow = db.insertTransaction(tx)
             if (newRow < 0) {
                 Toast.makeText(context, "Failed to add transaction", Toast.LENGTH_SHORT).show()
                 return
             }
 
-            // 8) Only after success, update balances
-            uiAccount.balance       += rawAmount
-
-            db.updateTankAfterTransaction(dbTank, rawAmount)
+            // 8) Update the account balance
+            uiAccount.balance += rawAmount
             db.updateAccount(uiAccount)
 
-            // 9) Tell the UI
+            // 9) Check if it's the Savings tank
+            if (isSavingsTank) {
+                if (transactionType == "income") {
+                    dbTank.maxAllocation += rawAmount
+                    dbTank.currentAllocation += rawAmount
+                    db.updateTankAfterTransaction(dbTank, rawAmount)
+                } else if (transactionType == "expense") {
+                    if (dbTank.maxAllocation < -rawAmount) {
+                        Toast.makeText(context, "Insufficient funds in Savings", Toast.LENGTH_SHORT).show()
+                        return
+                    }
+
+                    dbTank.maxAllocation += rawAmount // rawAmount is negative
+                    dbTank.currentAllocation += rawAmount
+                    db.updateTankAfterTransaction(dbTank, rawAmount)
+                }
+            } else {
+                db.updateTankAfterTransaction(dbTank, rawAmount)
+            }
+
+
+            // 10) Notify UI
             onTransactionAdded(tx)
 
         } catch (e: NumberFormatException) {
@@ -368,10 +386,13 @@ class AccountDetailFragment : Fragment() {
         }
     }
 
-
-
-
 }
+
+
+
+
+
+
 
 
 

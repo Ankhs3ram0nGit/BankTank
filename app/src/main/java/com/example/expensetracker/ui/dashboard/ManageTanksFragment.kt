@@ -14,8 +14,10 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.expensetracker.DB_Tank
 import com.example.expensetracker.DatabaseHandler
 import com.example.expensetracker.R
+import com.example.expensetracker.UI_Tank
 import com.example.expensetracker.databinding.FragmentManageTanksBinding
 
 class ManageTanksFragment : Fragment() {
@@ -27,7 +29,7 @@ class ManageTanksFragment : Fragment() {
     private lateinit var addTankButton: Button
     private lateinit var tanksAdapter: TanksAdapter
     private val tanksList = mutableListOf<UI_Tank>()
-    private var maxAllocation: Double = 0.0 // Declare maxAllocation here
+    private var maxAllocation: Double = 0.0
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -57,7 +59,7 @@ class ManageTanksFragment : Fragment() {
 
         // Load and set the saved Max Allocation value
         val dbHandler = DatabaseHandler(requireContext())
-        val savedMaxAllocation = dbHandler.getMaxAllocation()  // This method should return the saved max allocation value
+        val savedMaxAllocation = dbHandler.getMaxAllocation()
 
         // Populate the max allocation field with the saved value
         if (savedMaxAllocation != null) {
@@ -195,13 +197,12 @@ class ManageTanksFragment : Fragment() {
 
         buttonDelete.setOnClickListener {
             deleteTank(name, capacity, color)
-            dialog.dismiss() // Close dialog if the user cancels
+            dialog.dismiss()
         }
 
         dialog.show()
     }
 
-    // Save the new tank (adjust to your own logic)
     private fun saveTank(name: String, capacity: Double, color: String) {
         val newTank = UI_Tank(name, capacity, color, capacity)
 
@@ -235,9 +236,14 @@ class ManageTanksFragment : Fragment() {
         tanksList.clear()
         val dbHandler = DatabaseHandler(requireContext())
         val loadedTanks = dbHandler.getAllTanksUI()
-        tanksList.addAll(loadedTanks)
+
+        // Filter out the "Savings" tank
+        val filteredTanks = loadedTanks.filter { it.name.lowercase() != "savings" }
+
+        tanksList.addAll(filteredTanks)
         tanksAdapter.notifyDataSetChanged()
     }
+
 
     private fun onEditTank(tank: UI_Tank) {
         showEditTankDialog(tank.name, tank.allocation, tanksList)
